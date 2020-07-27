@@ -51,7 +51,6 @@ class SummarizationTrainer(BaseTransformer):
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
-
         tensorboard_logs = {"train_loss": loss}
         return {"loss": loss, "log": tensorboard_logs}
 
@@ -173,8 +172,6 @@ class SummarizationTrainer(BaseTransformer):
 
 def main(args):
 
-
-
     # If output_dir not provided, a folder will be generated in pwd
     if not args.output_dir:
         args.output_dir = os.path.join("./results", f"{args.task}_{time.strftime('%Y%m%d_%H%M%S')}",)
@@ -244,10 +241,6 @@ def main(args):
             for hypothesis in dec:
                 val_fout.write(hypothesis + "\n")
                 val_fout.flush()
-
-
-
-
 
 
 
