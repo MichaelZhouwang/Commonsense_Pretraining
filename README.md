@@ -59,3 +59,7 @@ CUDA_VISIBLE_DEVICES=4 bash run_gen.sh
 ```bash
 python clean_out.py
 ```
+
+- Evaluation
+
+- Evaluation can be done following the instructions in the evaluation_commongen folder
