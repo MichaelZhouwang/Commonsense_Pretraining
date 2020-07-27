@@ -1,0 +1,10 @@
+/home/bill/CommonGen-plus/dataset/final_data/commongen/commongen.dev.src_alpha.txt
+/home/bill/CommonGen-plus/dataset/final_data/commongen/commongen.dev.tgt.txt
+/home/bill/CommonGen-plus/methods/opennmt_based/model_output/commongen_transformer.dev.src_alpha.out
+MLM-Scores
+Evaluating with bert-base-en-uncased
+score with bert-base-en-uncased is -31.86115517158267
+Evaluating with roberta-base-en-cased
+score with roberta-base-en-cased is -29.39821796285111
+Evaluating with gpt2-345m-en-cased
+score with gpt2-345m-en-cased is -42.753119629612605

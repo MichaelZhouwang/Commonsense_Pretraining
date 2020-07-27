@@ -1,0 +1,42 @@
+/home/bill/CommonGen-plus/dataset/final_data/commongen/commongen.test.src_alpha.txt
+/home/bill/CommonGen-plus/dataset/final_data/commongen/commongen.test.tgt.txt
+/home/bill/CommonGen-plus/methods/opennmt_based/model_output/commongen_mean.test.src_alpha.out
+Start running ROUGE
+here!!!!!!!!!!!!!
+1
+---------------------------------------------
+1 ROUGE-1 Average_R: 0.29920 (95%-conf.int. 0.29615 - 0.30197)
+1 ROUGE-1 Average_P: 0.61733 (95%-conf.int. 0.61203 - 0.62221)
+1 ROUGE-1 Average_F: 0.39380 (95%-conf.int. 0.39034 - 0.39691)
+---------------------------------------------
+1 ROUGE-2 Average_R: 0.07007 (95%-conf.int. 0.06772 - 0.07233)
+1 ROUGE-2 Average_P: 0.15846 (95%-conf.int. 0.15340 - 0.16339)
+1 ROUGE-2 Average_F: 0.09457 (95%-conf.int. 0.09147 - 0.09754)
+---------------------------------------------
+1 ROUGE-L Average_R: 0.23506 (95%-conf.int. 0.23235 - 0.23755)
+1 ROUGE-L Average_P: 0.48352 (95%-conf.int. 0.47874 - 0.48808)
+1 ROUGE-L Average_F: 0.30913 (95%-conf.int. 0.30586 - 0.31222)
+
+/home/bill/CommonGen-plus/methods/opennmt_based/model_output/commongen_mean.test.src_alpha.out
+>> ROUGE-F(1/2/l): 39.38/9.46/30.91
+ROUGE-R(1/2/l): 29.92/7.01/23.51
+
+BLEU/METER/CIDER/SPICE
+SPICE evaluation took: 11.68 s
+tokenization...
+setting up scorers...
+computing Bleu score...
+{'reflen': 17211, 'guess': [9625, 8128, 6631, 5134], 'testlen': 9625, 'correct': [6669, 1980, 459, 114]}
+ratio: 0.559235372727
+Bleu_1: 0.315
+Bleu_2: 0.187
+Bleu_3: 0.103
+Bleu_4: 0.058
+computing METEOR score...
+METEOR: 0.164
+computing CIDEr score...
+CIDEr: 0.499
+computing SPICE score...
+SPICE: 0.171
+Coverage
+System level Coverage: 55.53
