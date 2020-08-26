@@ -8,17 +8,17 @@ import re
 from itertools import chain
 from string import punctuation
 
-import nltk
-nltk.download('punkt')
-from nltk.tokenize import sent_tokenize
+# import nltk
+# nltk.download('punkt')
+# from nltk.tokenize import sent_tokenize
 
 import pandas as pd
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset import NSPDataset
-
+from dataset import NSPDataset, SummarizationDataset, ConceptDataset, CSQADataset
+import argparse
 from transformers import (
     AdamW,
     T5ForConditionalGeneration,
@@ -28,15 +28,30 @@ from transformers import (
 
 def get_dataset(tokenizer, type_path, args):
     print(args.data_dir)
-    return NSPDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,
-                      nsp_generate=args.nsp_generate, max_len=args.max_seq_length)
+    if args.data_dir == 'commongen':
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,
+                          max_source_length=args.max_source_length, max_target_length=args.max_target_length)
+    if args.data_dir == 'csqa':
+        return CSQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+    if args.concept_generate:
+        return ConceptDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+    else:
+        return NSPDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,
+                          nsp_generate=args.nsp_generate, concept_generate=args.concept_generate, max_len=args.max_seq_length)
 
 class T5FineTuner(pl.LightningModule):
     def __init__(self, hparams):
         super(T5FineTuner, self).__init__()
+        if isinstance(hparams, dict):
+            hparams = argparse.Namespace(**hparams)
         self.hparams = hparams
 
-        self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+        if hparams.checkpoint_dir != '':
+            checkpoints = list(sorted(glob.glob(os.path.join(hparams.checkpoint_dir, "checkpointcheckpoint_ckpt_epoch_*.ckpt"), recursive=True)))
+            print(str(checkpoints))
+            self.model = T5FineTuner.load_from_checkpoint(checkpoints[-1])
+        else:
+            self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
         self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
 
     def is_logger(self):
@@ -123,7 +138,7 @@ class T5FineTuner(pl.LightningModule):
     def train_dataloader(self):
         train_dataset = get_dataset(tokenizer=self.tokenizer, type_path="train", args=self.hparams)
         dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, drop_last=True, shuffle=True,
-                                num_workers=4)
+                                num_workers=16)
 
         t_total = (
                 (len(dataloader.dataset) // (self.hparams.train_batch_size * max(1, self.hparams.n_gpu)))
@@ -140,4 +155,4 @@ class T5FineTuner(pl.LightningModule):
 
     def val_dataloader(self):
         val_dataset = get_dataset(tokenizer=self.tokenizer, type_path="valid", args=self.hparams)
-        return DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, num_workers=4)
+        return DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, num_workers=16)
