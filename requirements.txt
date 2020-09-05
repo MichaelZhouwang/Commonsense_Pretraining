@@ -1,6 +1,7 @@
 pandas
 spacy
-torch==1.5.1
+torch==1.6.0+cu101
+torchvision==0.7.0+cu101
 pytorch-lightning==0.8.1
 transformers==3.1.0
 tensorboard==1.15.0

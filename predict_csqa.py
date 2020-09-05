@@ -72,8 +72,10 @@ def run():
                         help='Number of Training epochs')
     parser.add_argument('--gradient_accumulation_steps', type=int, default=16,
                         help='Gradient Accumulation Steps')
-    parser.add_argument('--n_gpu', type=str, default="1",
-                        help='GPU numbers to use for computation')
+    parser.add_argument('--n_gpu', type=int, default=1,
+                        help='Number of GPUs to use for computation')
+    parser.add_argument('--gpu_nums', type=str, default="0",
+                        help='GPU ids separated by "," to use for computation')
     parser.add_argument('--seed', type=int, default=42,
                         help='Manual Seed Value')
 

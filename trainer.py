@@ -28,10 +28,12 @@ from transformers import (
 
 def get_dataset(tokenizer, type_path, args):
     print(args.data_dir)
-    if args.data_dir == 'commongen' or args.data_dir == 'keyword_lm' or args.data_dir == 'concept_deshuffling' or args.data_dir == 't5_processed':
+    data_dir_leaf = args.data_dir.split("/")[-1]
+
+    if data_dir_leaf == 'commongen' or data_dir_leaf == 'keyword_lm' or data_dir_leaf == 'concept_deshuffling' or data_dir_leaf == 't5_processed':
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,
                           max_source_length=args.max_source_length, max_target_length=args.max_target_length)
-    if args.data_dir == 'csqa':
+    if data_dir_leaf == 'csqa':
         return CSQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     if args.concept_generate:
         return ConceptDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
