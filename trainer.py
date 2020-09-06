@@ -35,6 +35,8 @@ def get_dataset(tokenizer, type_path, args):
                           max_source_length=args.max_source_length, max_target_length=args.max_target_length)
     if data_dir_leaf == 'csqa':
         return CSQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+    if data_dir_leaf == 'piqa':
+        return PIQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     if args.concept_generate:
         return ConceptDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     else:
