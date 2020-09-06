@@ -42,7 +42,7 @@ def run():
                         help='Whether to do generate Concept?')
 
     # you can find out more on optimisation levels here https://nvidia.github.io/apex/amp.html#opt-levels-and-properties
-    parser.add_argument('--opt_level', type=str, default="01",
+    parser.add_argument('--opt_level', type=str, default="O1",
                         help='Optimization level')
     parser.add_argument('--early_stop_callback', type=lambda x: (str(x).lower() == 'true'), default="False",
                         help='Whether to do early stopping?')
@@ -110,7 +110,16 @@ def run():
         distributed_backend='ddp'
     )
 
-    model = T5FineTuner(args)
+    if len(args.checkpoint_dir) != 0:
+        checkpoints = list(
+            sorted(glob.glob(os.path.join(args.checkpoint_dir, "checkpoint_epoch=*.ckpt"), recursive=True)))
+        print("Using checkpoint = ", str(checkpoints[-1]))
+        checkpoint_state = torch.load(checkpoints[-1])
+        model = T5FineTuner(args)
+        model.load_state_dict(checkpoint_state['state_dict'])
+    else:
+        model = T5FineTuner(args)
+
     trainer = pl.Trainer(**train_params)
     trainer.fit(model)
 
