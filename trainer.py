@@ -48,12 +48,7 @@ class T5FineTuner(pl.LightningModule):
             hparams = argparse.Namespace(**hparams)
         self.hparams = hparams
 
-        if hparams.checkpoint_dir != '':
-            checkpoints = list(sorted(glob.glob(os.path.join(hparams.checkpoint_dir, "checkpointcheckpoint_ckpt_epoch_*.ckpt"), recursive=True)))
-            print(str(checkpoints))
-            self.model = T5FineTuner.load_from_checkpoint(checkpoints[-1])
-        else:
-            self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+        self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
         self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
 
     def is_logger(self):

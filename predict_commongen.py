@@ -29,9 +29,9 @@ def run():
 
     parser.add_argument('--data_dir', type=str, default="datasets/commongen",
                         help='Path for Data files')
-    parser.add_argument('--output_dir', type=str, default="outputs/commongen_concept_output_epoch10",
+    parser.add_argument('--output_dir', type=str, default="outputs/commongen",
                         help='Path to save the checkpoints')
-    parser.add_argument('--checkpoint_dir', type=str, default="",
+    parser.add_argument('--checkpoint_dir', type=str, default="outputs/commongen_concept_output_epoch10",
                         help='Checkpoint directory')
 
     parser.add_argument('--model_name_or_path', type=str, default="t5-base",
@@ -62,7 +62,7 @@ def run():
     parser.add_argument('--max_grad_norm', type=float, default=1.0,
                         help='Maximum Gradient Norm value for Clipping')
 
-    parser.add_argument('--max_seq_length', type=int, default=128,
+    parser.add_argument('--max_seq_length', type=int, default=64,
                         help='Maximum Sequence Length')
     parser.add_argument('--warmup_steps', type=int, default=0,
                         help='Number of warmup steps')
@@ -89,16 +89,15 @@ def run():
         os.makedirs(args.output_dir)
         print("Creating output directory")
 
-    checkpoints = list(sorted(glob.glob(os.path.join(args.output_dir, "checkpointcheckpoint_ckpt_epoch_*.ckpt"), recursive=True)))
-    print(str(checkpoints))
+    checkpoints = list(sorted(glob.glob(os.path.join(args.checkpoint_dir, "checkpoint_epoch=*.ckpt"), recursive=True)))
+    print("Using checkpoint = ", str(checkpoints[-1]))
 
-    model = T5FineTuner.load_from_checkpoint(checkpoints[-1])
-
+    t5model = T5FineTuner.load_from_checkpoint(checkpoints[-1])
     tokenizer = T5Tokenizer.from_pretrained(args.model_name_or_path)
     test_examples = [x.rstrip() for x in open(os.path.join(args.data_dir, 'test.source')).readlines()]
-    test_fout = open('test.txt','w')
+    test_fout = open(os.path.join(args.output_dir, 'test.txt'),'w')
     val_examples = [x.rstrip() for x in open(os.path.join(args.data_dir, 'valid.source')).readlines()]
-    val_fout = open('val.txt','w')
+    val_fout = open(os.path.join(args.output_dir, 'val.txt'),'w')
 
     max_length = 24
     min_length = 1
@@ -109,11 +108,11 @@ def run():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(device)
-    model.to(device)
+    t5model.to(device)
 
-    for batch in tqdm(list(chunks(test_examples, 8))):
-        dct = tokenizer.batch_encode_plus(batch, max_length=64, return_tensors="pt", pad_to_max_length=True, truncation=True)
-        summaries = model.model.generate(
+    for batch in tqdm(list(chunks(test_examples, args.eval_batch_size))):
+        dct = tokenizer.batch_encode_plus(batch, max_length=args.max_seq_length, return_tensors="pt", pad_to_max_length=True, truncation=True)
+        summaries = t5model.model.generate(
             input_ids=dct["input_ids"].to(device),
             attention_mask=dct["attention_mask"].to(device),
             num_beams=5,
@@ -128,9 +127,9 @@ def run():
             test_fout.write(hypothesis + "\n")
             test_fout.flush()
 
-    for batch in tqdm(list(chunks(val_examples, 8))):
-        dct = tokenizer.batch_encode_plus(batch, max_length=64, return_tensors="pt", pad_to_max_length=True, truncation=True)
-        summaries = model.model.generate(
+    for batch in tqdm(list(chunks(val_examples, args.eval_batch_size))):
+        dct = tokenizer.batch_encode_plus(batch, max_length=args.max_seq_length, return_tensors="pt", pad_to_max_length=True, truncation=True)
+        summaries = t5model.model.generate(
             input_ids=dct["input_ids"].to(device),
             attention_mask=dct["attention_mask"].to(device),
             num_beams=5,

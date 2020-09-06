@@ -1,4 +1,5 @@
 from logger import LoggingCallback
+from custom_checkpoint import CustomCheckpointCallback
 import random
 import numpy as np
 import torch
@@ -26,6 +27,8 @@ def run():
                         help='Path to save the checkpoints')
     parser.add_argument('--checkpoint_dir', type=str, default="t5_concept",
                         help='Checkpoint directory')
+    parser.add_argument('--save_every_n_steps', type=int, default=10,
+                        help='Interval of training steps to save the model checkpoints')
 
     parser.add_argument('--model_name_or_path', type=str, default="t5-base",
                         help='Model name or Path')
@@ -86,6 +89,10 @@ def run():
         filepath=args.output_dir, prefix="checkpoint", monitor="val_loss", mode="min", save_top_k=5
     )
 
+    custom_checkpoint_callback = CustomCheckpointCallback(
+        filepath=args.output_dir, prefix="checkpoint_", save_every_n_steps=args.save_every_n_steps
+    )
+
     train_params = dict(
         accumulate_grad_batches=args.gradient_accumulation_steps,
         gpus=args.gpu_nums,
@@ -95,7 +102,7 @@ def run():
         amp_level=args.opt_level,
         gradient_clip_val=args.max_grad_norm,
         checkpoint_callback=checkpoint_callback,
-        callbacks=[LoggingCallback()],
+        callbacks=[LoggingCallback(), custom_checkpoint_callback],
         distributed_backend='ddp'
     )
 

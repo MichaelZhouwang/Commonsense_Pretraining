@@ -28,7 +28,7 @@ def run():
                         help='Path for Data files')
     parser.add_argument('--output_dir', type=str, default="outputs/csqa",
                         help='Path to save the checkpoints')
-    parser.add_argument('--checkpoint_dir', type=str, default="",
+    parser.add_argument('--checkpoint_dir', type=str, default="outputs/csqa_output_epoch10",
                         help='Checkpoint directory')
 
     parser.add_argument('--model_name_or_path', type=str, default="t5-base",
@@ -87,15 +87,15 @@ def run():
         os.makedirs(args.output_dir)
         print("Creating output directory")
 
-    checkpoints = list(sorted(glob.glob(os.path.join(args.output_dir, "checkpointcheckpoint_ckpt_epoch_*.ckpt"), recursive=True)))
-    print(str(checkpoints))
+    checkpoints = list(sorted(glob.glob(os.path.join(args.checkpoint_dir, "checkpoint_epoch=*.ckpt"), recursive=True)))
+    print("Using checkpoint = ", str(checkpoints[-1]))
 
-    model = T5FineTuner.load_from_checkpoint(checkpoints[0])
+    t5model = T5FineTuner.load_from_checkpoint(checkpoints[-1])
     tokenizer = T5Tokenizer.from_pretrained(args.model_name_or_path)
-    test_csvfile = open('dev.csv','w')
+    test_csvfile = open(os.path.join(args.output_dir, 'dev.csv'),'w')
     test_writer = csv.writer(test_csvfile)
     proc = CommonsenseQAProcessor('rand')
-    test_examples = proc.get_dev_examples('csqa')
+    test_examples = proc.get_dev_examples(args.data_dir)
 
     def chunks(lst, n):
         for i in range(0, len(lst), n):
@@ -103,9 +103,9 @@ def run():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(device)
-    model.to(device)
+    t5model.to(device)
 
-    for batch in tqdm(list(chunks(test_examples, 8))):
+    for batch in tqdm(list(chunks(test_examples, args.eval_batch_size))):
         batch_question = [b.question for b in batch]
         options = [['%s: %s' % (i, option) for i, option in zip('12345', b.answers)] for b in batch]
         options = [" ".join(opts) for opts in options]
@@ -114,8 +114,8 @@ def run():
         for question, option in zip(batch_question, options):
             inputs.append("context: %s  options: %s </s>" % (question, option))
 
-        dct = tokenizer.batch_encode_plus(inputs, max_length=128, return_tensors="pt", pad_to_max_length=True, truncation=True)
-        outs = model.model.generate(input_ids=dct['input_ids'].cuda(),
+        dct = tokenizer.batch_encode_plus(inputs, max_length=args.max_seq_length, return_tensors="pt", pad_to_max_length=True, truncation=True)
+        outs = t5model.model.generate(input_ids=dct['input_ids'].cuda(),
                                     attention_mask=dct['attention_mask'].cuda(),
                                     max_length=2)
 
