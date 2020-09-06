@@ -448,23 +448,23 @@ class SummarizationDataset(Dataset):
 class InputExample(object):
   """A single multiple choice question."""
   def __init__(self, qid, question, answers, label):
-    """Construct an instance."""
-    self.qid = qid
-    self.question = question
-    self.answers = answers
-    self.label = label
+      """Construct an instance."""
+      self.qid = qid
+      self.question = question
+      self.answers = answers
+      self.label = label
 
 
 class DataProcessor:
   """Base class for data converters for sequence classification data sets."""
 
   def get_train_examples(self, data_dir):
-    """Gets a collection of `InputExample`s for the train set."""
-    raise NotImplementedError()
+      """Gets a collection of `InputExample`s for the train set."""
+      raise NotImplementedError()
 
   def get_dev_examples(self, data_dir):
-    """Gets a collection of `InputExample`s for the dev set."""
-    raise NotImplementedError()
+      """Gets a collection of `InputExample`s for the dev set."""
+      raise NotImplementedError()
 
   def get_test_examples(self, data_dir):
     """Gets a collection of `InputExample`s for prediction."""
@@ -534,6 +534,64 @@ class CommonsenseQAProcessor(DataProcessor):
     return examples
 
 
+class PIQAProcessor(DataProcessor):
+  """Processor for the CommonsenseQA data set."""
+
+  LABELS = ['sol1', 'sol2']
+
+  TRAIN_FILE_NAME = 'train.jsonl'
+  TRAIN_LABEL_NAME = 'train-labels.lst'
+  DEV_FILE_NAME = 'valid.jsonl'
+  DEV_LABEL_NAME = 'valid-labels.lst'
+  TEST_FILE_NAME = 'tests.jsonl'
+
+  def get_train_examples(self, data_dir):
+    train_file_name = self.TRAIN_FILE_NAME
+    train_label_name = self.TRAIN_LABEL_NAME
+    return self._create_examples(self._read_jsonl(os.path.join(data_dir, train_file_name)), self._read_jsonl(os.path.join(data_dir, train_label_name)), 'train')
+
+  def get_dev_examples(self, data_dir):
+    dev_file_name = self.DEV_FILE_NAME
+    dev_label_name = self.DEV_LABEL_NAME
+    return self._create_examples(self._read_jsonl(os.path.join(data_dir, dev_file_name)), self._read_jsonl(os.path.join(data_dir, dev_label_name)), 'dev')
+
+  def get_test_examples(self, data_dir):
+    test_file_name = self.TEST_FILE_NAME
+
+    return self._create_examples(self._read_jsonl(os.path.join(data_dir, test_file_name)), None, 'test')
+
+  def get_labels(self):
+    return [0, 1]
+
+  def _create_examples(self, lines, labels, set_type):
+    examples = []
+    if labels is not None:
+        for qid, (line, label) in enumerate(zip(lines, labels)):
+            context = ""
+            question = line["goal"]
+            choices = [line["sol1"], line["sol2"]]
+            choices = [c + "." if not c.endswith(".") else c for c in choices]
+            examples.append(InputExample(
+                qid=qid,
+                question=question,
+                answers=choices,
+                label=label))
+    else:
+        for qid, line in enumerate(lines):
+            context = ""
+            question = line["goal"]
+            choices = [line["sol1"], line["sol2"]]
+            choices = [c + "." if not c.endswith(".") else c for c in choices]
+            #label = fields.get('label', None)
+            examples.append(InputExample(
+                qid=qid,
+                question=question,
+                answers=choices,
+                label=None))
+    return examples
+
+
+
 class CSQADataset(Dataset):
     def __init__(self, tokenizer, data_dir, type_path, max_len=512):
         self.data_dir = data_dir
@@ -586,3 +644,56 @@ class CSQADataset(Dataset):
 
         self.inputs.append(tokenized_inputs)
         self.targets.append(tokenized_targets)
+
+class PIQADataset(Dataset):
+    def __init__(self, tokenizer, data_dir, type_path, max_len=512):
+        self.data_dir = data_dir
+        self.type_path = type_path
+        self.max_len = max_len
+        self.tokenizer = tokenizer
+        self.inputs = []
+        self.targets = []
+
+        self.proc = PIQAProcessor()
+
+        self._build()
+
+    def __getitem__(self, index):
+        source_ids = self.inputs[index]["input_ids"].squeeze()
+        target_ids = self.targets[index]["input_ids"].squeeze()
+        src_mask = self.inputs[index]["attention_mask"].squeeze()  # might need to squeeze
+        target_mask = self.targets[index]["attention_mask"].squeeze()  # might need to squeeze
+
+        return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
+
+    def __len__(self):
+        return len(self.inputs)
+
+    def _build(self):
+        if self.type_path == 'train':
+            examples = self.proc.get_train_examples(self.data_dir)
+        else:
+            examples = self.proc.get_dev_examples(self.data_dir)
+
+        for example in examples:
+            self._create_features(example)
+
+    def _create_features(self, example):
+        input_ = example.question
+        options = ['%s: %s' % (i, option) for i, option in zip('12', example.answers)]
+        options = " ".join(options)
+        input_ = "context: %s  options: %s </s>" % (input_, options)
+        target = "%s </s>" % str(int(example.label) + 1)
+        # tokenize inputs
+        tokenized_inputs = self.tokenizer.batch_encode_plus(
+            [input_], max_length=self.max_len, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        # tokenize targets
+        tokenized_targets = self.tokenizer.batch_encode_plus(
+            [target], max_length=2, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        self.inputs.append(tokenized_inputs)
+        self.targets.append(tokenized_targets)
+
