@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset import NSPDataset, SummarizationDataset, ConceptDataset, CSQADataset
+from dataset import NSPDataset, SummarizationDataset, ConceptDataset, CSQADataset, PIQADataset
 import argparse
 from transformers import (
     AdamW,

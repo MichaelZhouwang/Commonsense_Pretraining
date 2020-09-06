@@ -23,11 +23,11 @@ def run():
 
     parser.add_argument('--data_dir', type=str, default="datasets/piqa",
                         help='Path for Data files')
-    parser.add_argument('--output_dir', type=str, default="outputs/piqa_",
+    parser.add_argument('--output_dir', type=str, default="outputs/piqa_", # model_save/piqa-fp32-max128-2e5-batch2
                         help='Path to save the checkpoints')
     parser.add_argument('--checkpoint_dir', type=str, default="",
                         help='Checkpoint directory')
-    parser.add_argument('--save_every_n_steps', type=int, default=10,
+    parser.add_argument('--save_every_n_steps', type=int, default=10,  # model_save/piqa-fp32-max128-3e4
                         help='Interval of training steps to save the model checkpoints')
 
     parser.add_argument('--model_name_or_path', type=str, default="t5-base",
@@ -65,7 +65,7 @@ def run():
                         help='Batch size for Training')
     parser.add_argument('--eval_batch_size', type=int, default=8,
                         help='Batch size for Evaluation')
-    parser.add_argument('--num_train_epochs', type=int, default=10,
+    parser.add_argument('--num_train_epochs', type=int, default=20,
                         help='Number of Training epochs')
     parser.add_argument('--gradient_accumulation_steps', type=int, default=32,
                         help='Gradient Accumulation Steps')
@@ -101,7 +101,7 @@ def run():
         amp_level=args.opt_level,
         gradient_clip_val=args.max_grad_norm,
         checkpoint_callback=checkpoint_callback,
-        callbacks=[LoggingCallback(), custom_checkpoint_callback],
+        callbacks=[LoggingCallback()],
         distributed_backend='ddp'
     )
 

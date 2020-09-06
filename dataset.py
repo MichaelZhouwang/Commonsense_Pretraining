@@ -566,7 +566,7 @@ class PIQAProcessor(DataProcessor):
   def _create_examples(self, lines, labels, set_type):
     examples = []
     if labels is not None:
-        for qid, line, label in enumerate(zip(lines, labels)):
+        for qid, (line, label) in enumerate(zip(lines, labels)):
             context = ""
             question = line["goal"]
             choices = [line["sol1"], line["sol2"]]
@@ -684,7 +684,6 @@ class PIQADataset(Dataset):
         options = " ".join(options)
         input_ = "context: %s  options: %s </s>" % (input_, options)
         target = "%s </s>" % str(int(example.label) + 1)
-
         # tokenize inputs
         tokenized_inputs = self.tokenizer.batch_encode_plus(
             [input_], max_length=self.max_len, pad_to_max_length=True, return_tensors="pt", truncation=True
