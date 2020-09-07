@@ -107,7 +107,7 @@ def run():
 
     for batch in tqdm(list(chunks(test_examples, args.eval_batch_size))):
         batch_question = [b.question for b in batch]
-        options = [['%s: %s' % (i, option) for i, option in zip('12345', b.answers)] for b in batch]
+        options = [['%s: %s' % (i, option) for i, option in zip('12', b.answers)] for b in batch]
         options = [" ".join(opts) for opts in options]
 
         inputs = []
@@ -121,10 +121,9 @@ def run():
 
         LABELS = ['0','1']
         dec = [LABELS[int(tokenizer.decode(ids))-1] for ids in outs]
-        ids = [b.qid for b in batch]
 
-        for i, d in zip(ids, dec):
-            test_writer.writerow([i,d])
+        for d in dec:
+            test_writer.writerow([d])
 
 if __name__ == '__main__':
     run()
