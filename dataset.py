@@ -20,7 +20,7 @@ import tensorflow_datasets as tfds
 
 class NSPDataset(Dataset):
     def __init__(self, tokenizer, data_dir, type_path, nsp_generate=False, concept_generate=False, max_len=512):
-
+        self.type_path = type_path
         self.file_path = os.path.join(data_dir)
         self.files = glob.glob("%s/wiki.%s.raw" % (self.file_path, type_path))
 
@@ -54,8 +54,7 @@ class NSPDataset(Dataset):
     def _build(self):
         self._build_examples_from_files(self.files)
 
-
-    def neighboring_pairs(self, dataset, text_key='text', reuse_sentences=True):
+    def neighboring_pairs_test(self, dataset, text_key='text', reuse_sentences=True):
         def split_by_lines(dataset):
             """Splits text in dataset by line, removing empty lines."""
             def my_fn(text):
@@ -98,8 +97,48 @@ class NSPDataset(Dataset):
         dataset = dataset.filter(lambda x: example_len(x) > 0)
         return dataset
 
+    def neighboring_pairs_train(self, dataset, text_key='text', reuse_sentences=True):
+        def split_by_lines(dataset):
+            """Splits text in dataset by line, removing empty lines."""
+            def my_fn(text):
+                lines = tf.strings.split([text], sep='\n\n').values
+                return tf.strings.strip(lines)
+            dataset = dataset.map(my_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            dataset = dataset.unbatch()
+            return dataset.filter(lambda x: tf.strings.length(x) > 0)
 
-    def _build_examples_from_files(self, files, label='nsp: ', label_sentences=False):
+        def split_into_pairs(line):
+            """Split a given text example into pairs of neighboring sentences."""
+            # TODO(mmatena): Use better sentence segmentation.
+            sentences = tf.strings.strip(tf.strings.split([line], sep='\n').values)
+            if reuse_sentences:
+                firsts = sentences[:-1]
+                seconds = sentences[1:]
+            else:
+                firsts = sentences[:-1:2]
+                seconds = sentences[1::2]
+            return {
+                'first': firsts,
+                'second': seconds,
+            }
+
+        def example_len(x):
+            return tf.math.minimum(
+                tf.strings.length(x['first']), tf.strings.length(x['second']))
+
+        # Split by lines.
+        dataset = dataset.map(lambda x: x[text_key], num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = split_by_lines(dataset)
+
+        # Get pairs of neighboring sentences.
+        dataset = dataset.map(split_into_pairs, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = dataset.unbatch()
+
+        # Remove examples with empty strings.
+        dataset = dataset.filter(lambda x: example_len(x) > 0)
+        return dataset
+
+    def _build_examples_from_files(self, files, label='is_next: ', label_sentences=False):
         for path in files:
             with open(path, 'r') as f:
                 text = f.read()
@@ -110,7 +149,10 @@ class NSPDataset(Dataset):
 
             og_dataset = tf.data.Dataset.from_tensor_slices({'text': [text]})
             empty = tf.constant('', dtype=tf.string, shape=[1])
-            dataset = self.neighboring_pairs(og_dataset, text_key='text')
+            if self.type_path == 'train':
+                dataset = self.neighboring_pairs_train(og_dataset, text_key='text')
+            else:
+                dataset = self.neighboring_pairs_test(og_dataset, text_key='text')
 
             dataset = dataset.shuffle(100000).batch(2, drop_remainder=True)
             dataset_length = [i for i, _ in enumerate(tfds.as_numpy(dataset))][-1] + 1
@@ -173,8 +215,8 @@ class NSPDataset(Dataset):
 
                 relation_label = tf.cond(
                     negative_sampling,
-                    lambda: 'next',
-                    lambda: 'not_next',
+                    lambda: 'true',
+                    lambda: 'false',
                 )
 
                 inputs = []
@@ -225,7 +267,7 @@ class NSPDataset(Dataset):
 
             # tokenize targets
             tokenized_targets = self.tokenizer.batch_encode_plus(
-                tmp_target, max_length=5, pad_to_max_length=True, return_tensors="pt", truncation=True
+                tmp_target, max_length=2, pad_to_max_length=True, return_tensors="pt", truncation=True
             )
 
             for input, attention in zip(tokenized_inputs["input_ids"], tokenized_inputs["attention_mask"]):
@@ -239,7 +281,7 @@ class NSPDataset(Dataset):
 
 class ConceptDataset(Dataset):
     def __init__(self, tokenizer, data_dir, type_path, max_len=512):
-
+        self.type_path = type_path
         self.file_path = os.path.join(data_dir)
         self.files = glob.glob("%s/wiki.%s.raw" % (self.file_path, type_path))
 
@@ -265,7 +307,7 @@ class ConceptDataset(Dataset):
     def _build(self):
         self._build_examples_from_files(self.files)
 
-    def neighboring_pairs(self, dataset, text_key='text'):
+    def neighboring_pairs_test(self, dataset, text_key='text'):
         def split_by_lines(dataset):
             """Splits text in dataset by line, removing empty lines."""
             def my_fn(text):
@@ -303,15 +345,53 @@ class ConceptDataset(Dataset):
         dataset = dataset.filter(filter_fn)
         return dataset
 
+    def neighboring_pairs_train(self, dataset, text_key='text'):
+        def split_by_lines(dataset):
+            """Splits text in dataset by line, removing empty lines."""
+            def my_fn(text):
+                lines = tf.strings.split([text], sep='\n\n').values
+                return tf.strings.strip(lines)
+            dataset = dataset.map(my_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            dataset = dataset.unbatch()
+            return dataset.filter(lambda x: tf.strings.length(x) > 0)
 
-    def _build_examples_from_files(self, files, label='concept: '):
+        def split_by_sep(dataset):
+            """Splits text in dataset by line, removing empty lines."""
+            def my_fn(text):
+                sentences = tf.strings.strip(tf.strings.split([text], sep='\n').values)
+                return sentences
+            dataset = dataset.map(my_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            dataset = dataset.unbatch()
+            return dataset.filter(lambda x: tf.strings.length(x) > 0)
+
+        def get_sentence(line):
+            return {
+                'text': line,
+            }
+
+        # Split by lines.
+        dataset = dataset.map(lambda x: x[text_key], num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = split_by_lines(dataset)
+        dataset = split_by_sep(dataset)
+        dataset = dataset.map(get_sentence, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+        def filter_fn(x):
+            return self.generator.check_availability(x)
+
+        dataset = dataset.filter(filter_fn)
+        return dataset
+
+    def _build_examples_from_files(self, files, label='Does this sentence make sense?: '):
         for path in files:
             with open(path, 'r') as f:
                 text = f.read()
 
             og_dataset = tf.data.Dataset.from_tensor_slices({'text': [text]})
             empty = tf.constant('', dtype=tf.string, shape=[1])
-            dataset = self.neighboring_pairs(og_dataset, text_key='text')
+            if self.type_path == 'train':
+                dataset = self.neighboring_pairs_train(og_dataset, text_key='text')
+            else:
+                dataset = self.neighboring_pairs_test(og_dataset, text_key='text')
             dataset = dataset.shuffle(100000)
             dataset_length = [i for i, _ in enumerate(tfds.as_numpy(dataset))][-1] + 1
             print(dataset_length)
@@ -346,8 +426,8 @@ class ConceptDataset(Dataset):
 
                 relation_label = tf.cond(
                     negative_sampling,
-                    lambda: 'concept',
-                    lambda: 'not_concept',
+                    lambda: 'true',
+                    lambda: 'false',
                 )
 
                 inputs = []
@@ -393,7 +473,7 @@ class ConceptDataset(Dataset):
 
             # tokenize targets
             tokenized_targets = self.tokenizer.batch_encode_plus(
-                tmp_target, max_length=20, pad_to_max_length=True, return_tensors="pt", truncation=True
+                tmp_target, max_length=7, pad_to_max_length=True, return_tensors="pt", truncation=True
             )
 
             for input, attention in zip(tokenized_inputs["input_ids"], tokenized_inputs["attention_mask"]):
@@ -448,23 +528,23 @@ class SummarizationDataset(Dataset):
 class InputExample(object):
   """A single multiple choice question."""
   def __init__(self, qid, question, answers, label):
-      """Construct an instance."""
-      self.qid = qid
-      self.question = question
-      self.answers = answers
-      self.label = label
+    """Construct an instance."""
+    self.qid = qid
+    self.question = question
+    self.answers = answers
+    self.label = label
 
 
 class DataProcessor:
   """Base class for data converters for sequence classification data sets."""
 
   def get_train_examples(self, data_dir):
-      """Gets a collection of `InputExample`s for the train set."""
-      raise NotImplementedError()
+    """Gets a collection of `InputExample`s for the train set."""
+    raise NotImplementedError()
 
   def get_dev_examples(self, data_dir):
-      """Gets a collection of `InputExample`s for the dev set."""
-      raise NotImplementedError()
+    """Gets a collection of `InputExample`s for the dev set."""
+    raise NotImplementedError()
 
   def get_test_examples(self, data_dir):
     """Gets a collection of `InputExample`s for prediction."""
@@ -534,6 +614,60 @@ class CommonsenseQAProcessor(DataProcessor):
     return examples
 
 
+class CSQADataset(Dataset):
+    def __init__(self, tokenizer, data_dir, type_path, max_len=512):
+        self.data_dir = data_dir
+        self.type_path = type_path
+        self.max_len = max_len
+        self.tokenizer = tokenizer
+        self.inputs = []
+        self.targets = []
+
+        self.proc = CommonsenseQAProcessor('rand')
+
+        self._build()
+
+    def __getitem__(self, index):
+        source_ids = self.inputs[index]["input_ids"].squeeze()
+        target_ids = self.targets[index]["input_ids"].squeeze()
+        src_mask = self.inputs[index]["attention_mask"].squeeze()  # might need to squeeze
+        target_mask = self.targets[index]["attention_mask"].squeeze()  # might need to squeeze
+
+        return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
+
+    def __len__(self):
+        return len(self.inputs)
+
+    def _build(self):
+        if self.type_path == 'train':
+            examples = self.proc.get_train_examples(self.data_dir)
+        else:
+            examples = self.proc.get_dev_examples(self.data_dir)
+
+        for example in examples:
+            self._create_features(example)
+
+    def _create_features(self, example):
+        input_ = example.question
+        options = ['%s: %s' % (i, option) for i, option in zip('12345', example.answers)]
+        options = " ".join(options)
+        input_ = "context: %s  options: %s </s>" % (input_, options)
+        target = "%s </s>" % str(int(example.label) + 1)
+
+        # tokenize inputs
+        tokenized_inputs = self.tokenizer.batch_encode_plus(
+            [input_], max_length=self.max_len, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        # tokenize targets
+        tokenized_targets = self.tokenizer.batch_encode_plus(
+            [target], max_length=2, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        self.inputs.append(tokenized_inputs)
+        self.targets.append(tokenized_targets)
+
+
 class PIQAProcessor(DataProcessor):
   """Processor for the CommonsenseQA data set."""
 
@@ -590,60 +724,6 @@ class PIQAProcessor(DataProcessor):
                 label=None))
     return examples
 
-
-
-class CSQADataset(Dataset):
-    def __init__(self, tokenizer, data_dir, type_path, max_len=512):
-        self.data_dir = data_dir
-        self.type_path = type_path
-        self.max_len = max_len
-        self.tokenizer = tokenizer
-        self.inputs = []
-        self.targets = []
-
-        self.proc = CommonsenseQAProcessor('rand')
-
-        self._build()
-
-    def __getitem__(self, index):
-        source_ids = self.inputs[index]["input_ids"].squeeze()
-        target_ids = self.targets[index]["input_ids"].squeeze()
-        src_mask = self.inputs[index]["attention_mask"].squeeze()  # might need to squeeze
-        target_mask = self.targets[index]["attention_mask"].squeeze()  # might need to squeeze
-
-        return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
-
-    def __len__(self):
-        return len(self.inputs)
-
-    def _build(self):
-        if self.type_path == 'train':
-            examples = self.proc.get_train_examples(self.data_dir)
-        else:
-            examples = self.proc.get_dev_examples(self.data_dir)
-
-        for example in examples:
-            self._create_features(example)
-
-    def _create_features(self, example):
-        input_ = example.question
-        options = ['%s: %s' % (i, option) for i, option in zip('12345', example.answers)]
-        options = " ".join(options)
-        input_ = "context: %s  options: %s </s>" % (input_, options)
-        target = "%s </s>" % str(int(example.label) + 1)
-
-        # tokenize inputs
-        tokenized_inputs = self.tokenizer.batch_encode_plus(
-            [input_], max_length=self.max_len, pad_to_max_length=True, return_tensors="pt", truncation=True
-        )
-
-        # tokenize targets
-        tokenized_targets = self.tokenizer.batch_encode_plus(
-            [target], max_length=2, pad_to_max_length=True, return_tensors="pt", truncation=True
-        )
-
-        self.inputs.append(tokenized_inputs)
-        self.targets.append(tokenized_targets)
 
 class PIQADataset(Dataset):
     def __init__(self, tokenizer, data_dir, type_path, max_len=512):
