@@ -392,7 +392,7 @@ class ConceptDataset(Dataset):
                 dataset = self.neighboring_pairs_train(og_dataset, text_key='text')
             else:
                 dataset = self.neighboring_pairs_test(og_dataset, text_key='text')
-            dataset = dataset.shuffle(100000)
+            dataset = dataset.shuffle(500000)
             dataset_length = [i for i, _ in enumerate(tfds.as_numpy(dataset))][-1] + 1
             print(dataset_length)
 
