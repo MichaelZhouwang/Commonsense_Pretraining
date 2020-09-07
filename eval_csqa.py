@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-#% python3 evaluator.py -qa questions.jsonl -p predictions.csv -o metrics.json
+#% python3 evaluator.py -qa datasets/csqa/questions.jsonl -p predictions.csv -o metrics.json
+# python eval_csqa.py -qa datasets/csqa/dev_rand_split.jsonl -p
 import csv
 from typing import *
 import logging
