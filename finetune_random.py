@@ -106,7 +106,7 @@ def run():
         amp_level=args.opt_level,
         gradient_clip_val=args.max_grad_norm,
         checkpoint_callback=checkpoint_callback,
-        callbacks=[LoggingCallback(), custom_checkpoint_callback],
+        callbacks=[LoggingCallback()],
         distributed_backend='ddp'
     )
 
