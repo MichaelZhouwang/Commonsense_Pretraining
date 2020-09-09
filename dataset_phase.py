@@ -149,6 +149,9 @@ class Phase1Dataset(Dataset):
                     generated_sentences.append(tf.convert_to_tensor(generated_sentence, dtype=tf.string))
                     return tf.stack(generated_sentences)
 
+                #TODO: add reconstructor
+                # recover_sentence = recover(generated-sentence)
+
                 encode_sentence = tf.py_function(get_generated_sentence, [x['text']], [tf.string])[0]
                 with tf.Session() as sess:
                     sess.run(tf.global_variables_initializer())
