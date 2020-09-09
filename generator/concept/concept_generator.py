@@ -1,5 +1,6 @@
 import spacy
 import random
+import copy
 import tensorflow.compat.v1 as tf
 
 class ConceptGenerator:
@@ -24,7 +25,10 @@ class ConceptGenerator:
                 if root_noun.pos_ == "NOUN":
                     N_concepts.append(root_noun.text_with_ws)
             if len(N_concepts) >= 2 or len(V_concepts) >= 2:
-                return True
+                if len(set(N_concepts)) == 1 or len(set(V_concepts)) == 1:
+                    return False
+                else:
+                    return True
             else:
                 return False
 
@@ -46,9 +50,13 @@ class ConceptGenerator:
                 N_concepts.append(root_noun.text_with_ws)
 
         if len(N_concepts) >= 2:
-            random.shuffle(N_concepts)
+            previous = copy.deepcopy(N_concepts)
+            while previous == N_concepts:
+                random.shuffle(N_concepts)
         if len(V_concepts) >= 2:
-            random.shuffle(V_concepts)
+            previous = copy.deepcopy(V_concepts)
+            while previous == V_concepts:
+                random.shuffle(V_concepts)
 
         shuffled_tokens = []
         N_concepts_index = 0

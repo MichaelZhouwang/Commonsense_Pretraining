@@ -6,7 +6,7 @@ import torch
 import argparse
 import os
 import pytorch_lightning as pl
-from dataset import NSPDataset
+from dataset_baselines import NSPDataset
 from trainer import *
 
 def set_seed(seed):

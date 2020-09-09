@@ -1,15 +1,12 @@
+from logger import LoggingCallback
+from custom_checkpoint import CustomCheckpointCallback
+import random
+import numpy as np
 import torch
-import csv
 import argparse
+import os
+import pytorch_lightning as pl
 from trainer import *
-from tqdm import tqdm
-from transformers import (
-    AdamW,
-    T5ForConditionalGeneration,
-    T5Tokenizer,
-    get_linear_schedule_with_warmup
-)
-from dataset_baselines import PIQAProcessor
 
 def set_seed(seed):
     random.seed(seed)
@@ -24,22 +21,29 @@ def run():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--data_dir', type=str, default="datasets/piqa",
+    parser.add_argument('--phase', type=int, default="",
+                        help='phase number')
+    parser.add_argument('--data_dir', type=str, default="datasets/wikitext-2-raw",
                         help='Path for Data files')
-    parser.add_argument('--output_dir', type=str, default="outputs/csqa",
+    parser.add_argument('--output_dir', type=str, default="model_save/phase1",
                         help='Path to save the checkpoints')
-    parser.add_argument('--checkpoint_dir', type=str, default="outputs/csqa_output_epoch10",
+    parser.add_argument('--checkpoint_dir', type=str, default="",
                         help='Checkpoint directory')
+    parser.add_argument('--save_every_n_steps', type=int, default=10,
+                        help='Interval of training steps to save the model checkpoints')
 
     parser.add_argument('--model_name_or_path', type=str, default="t5-base",
                         help='Model name or Path')
     parser.add_argument('--tokenizer_name_or_path', type=str, default="t5-base",
                         help='Tokenizer name or Path')
+
     parser.add_argument('--nsp_generate', type=lambda x: (str(x).lower() == 'true'), default="False",
                         help='Whether to generate NSP?')
+    parser.add_argument('--concept_generate', type=lambda x: (str(x).lower() == 'true'), default="True",
+                        help='Whether to do generate Concept?')
 
     # you can find out more on optimisation levels here https://nvidia.github.io/apex/amp.html#opt-levels-and-properties
-    parser.add_argument('--opt_level', type=str, default="01",
+    parser.add_argument('--opt_level', type=str, default="O1",
                         help='Optimization level')
     parser.add_argument('--early_stop_callback', type=lambda x: (str(x).lower() == 'true'), default="False",
                         help='Whether to do early stopping?')
@@ -59,7 +63,6 @@ def run():
     parser.add_argument('--max_grad_norm', type=float, default=1.0,
                         help='Maximum Gradient Norm value for Clipping')
 
-
     parser.add_argument('--max_seq_length', type=int, default=128,
                         help='Maximum Sequence Length')
     parser.add_argument('--warmup_steps', type=int, default=0,
@@ -68,7 +71,7 @@ def run():
                         help='Batch size for Training')
     parser.add_argument('--eval_batch_size', type=int, default=4,
                         help='Batch size for Evaluation')
-    parser.add_argument('--num_train_epochs', type=int, default=10,
+    parser.add_argument('--num_train_epochs', type=int, default=2,
                         help='Number of Training epochs')
     parser.add_argument('--gradient_accumulation_steps', type=int, default=16,
                         help='Gradient Accumulation Steps')
@@ -87,43 +90,40 @@ def run():
         os.makedirs(args.output_dir)
         print("Creating output directory")
 
-    checkpoints = list(sorted(glob.glob(os.path.join(args.checkpoint_dir, "checkpoint_epoch=*.ckpt"), recursive=True)))
-    print("Using checkpoint = ", str(checkpoints[-1]))
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(
+        filepath=args.output_dir, prefix="checkpoint_", monitor="val_loss", mode="min", save_top_k=5
+    )
 
-    t5model = T5FineTuner.load_from_checkpoint(checkpoints[-1])
-    tokenizer = T5Tokenizer.from_pretrained(args.model_name_or_path)
-    test_csvfile = open(os.path.join(args.output_dir, 'dev.csv'),'w')
-    test_writer = csv.writer(test_csvfile)
-    proc = PIQAProcessor()
-    test_examples = proc.get_dev_examples(args.data_dir)
+    custom_checkpoint_callback = CustomCheckpointCallback(
+        filepath=args.output_dir, prefix="checkpoint_", save_every_n_steps=args.save_every_n_steps
+    )
 
-    def chunks(lst, n):
-        for i in range(0, len(lst), n):
-            yield lst[i : i + n]
+    train_params = dict(
+        accumulate_grad_batches=args.gradient_accumulation_steps,
+        gpus=args.gpu_nums,
+        max_epochs=args.num_train_epochs,
+        early_stop_callback=args.early_stop_callback,
+        precision=16 if args.fp_16 else 32,
+        amp_level=args.opt_level,
+        gradient_clip_val=args.max_grad_norm,
+        checkpoint_callback=checkpoint_callback,
+        callbacks=[LoggingCallback()],
+        distributed_backend='ddp'
+    )
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(device)
-    t5model.to(device)
+    if len(args.checkpoint_dir) != 0:
+        checkpoints = list(
+            sorted(glob.glob(os.path.join(args.checkpoint_dir, "checkpoint_epoch=*.ckpt"), recursive=True)))
+        print("Using checkpoint = ", str(checkpoints[-1]))
+        checkpoint_state = torch.load(checkpoints[-1])
+        model = T5FineTuner(args)
+        model.load_state_dict(checkpoint_state['state_dict'])
+    else:
+        model = T5FineTuner(args)
 
-    for batch in tqdm(list(chunks(test_examples, args.eval_batch_size))):
-        batch_question = [b.question for b in batch]
-        options = [['%s: %s' % (i, option) for i, option in zip('12', b.answers)] for b in batch]
-        options = [" ".join(opts) for opts in options]
+    trainer = pl.Trainer(**train_params)
+    trainer.fit(model)
 
-        inputs = []
-        for question, option in zip(batch_question, options):
-            inputs.append("context: %s  options: %s </s>" % (question, option))
-
-        dct = tokenizer.batch_encode_plus(inputs, max_length=args.max_seq_length, return_tensors="pt", pad_to_max_length=True, truncation=True)
-        outs = t5model.model.generate(input_ids=dct['input_ids'].cuda(),
-                                    attention_mask=dct['attention_mask'].cuda(),
-                                    max_length=2)
-
-        LABELS = ['0','1']
-        dec = [LABELS[int(tokenizer.decode(ids))-1] for ids in outs]
-
-        for d in dec:
-            test_writer.writerow([d])
 
 if __name__ == '__main__':
     run()

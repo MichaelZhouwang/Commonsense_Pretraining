@@ -17,7 +17,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset import NSPDataset, SummarizationDataset, ConceptDataset, CSQADataset, PIQADataset
+from dataset_baselines import NSPDataset, SummarizationDataset, ConceptDataset, CSQADataset, PIQADataset
+from dataset_phase import Phase1Dataset
 import argparse
 from transformers import (
     AdamW,
@@ -37,6 +38,9 @@ def get_dataset(tokenizer, type_path, args):
         return CSQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     if data_dir_leaf == 'piqa':
         return PIQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+    if args.phase == 1:
+        print("phase 1")
+        return Phase1Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     if args.concept_generate:
         return ConceptDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     else:

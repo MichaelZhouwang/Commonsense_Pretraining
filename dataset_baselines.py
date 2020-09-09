@@ -279,6 +279,7 @@ class NSPDataset(Dataset):
                     {"input_ids": input, "attention_mask": attention}
                 )
 
+
 class ConceptDataset(Dataset):
     def __init__(self, tokenizer, data_dir, type_path, max_len=512):
         self.type_path = type_path

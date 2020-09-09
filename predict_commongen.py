@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import argparse
 import pytorch_lightning as pl
-from dataset import NSPDataset
+from dataset_baselines import NSPDataset
 from trainer import *
 from tqdm import tqdm
 from transformers import (
