@@ -21,9 +21,9 @@ def run():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--data_dir', type=str, default="datasets/csqa",
+    parser.add_argument('--data_dir', type=str, default="datasets/anli",
                         help='Path for Data files')
-    parser.add_argument('--output_dir', type=str, default="outputs/csqa_output_epoch10",
+    parser.add_argument('--output_dir', type=str, default="outputs/anli_outputs",
                         help='Path to save the checkpoints')
     parser.add_argument('--checkpoint_dir', type=str, default="",
                         help='Checkpoint directory')
@@ -101,7 +101,7 @@ def run():
         amp_level=args.opt_level,
         gradient_clip_val=args.max_grad_norm,
         checkpoint_callback=checkpoint_callback,
-        callbacks=[LoggingCallback(), custom_checkpoint_callback],
+        callbacks=[LoggingCallback()],
         distributed_backend='ddp'
     )
 
