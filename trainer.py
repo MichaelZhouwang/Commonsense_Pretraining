@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset_baselines import NSPDataset, SummarizationDataset, ConceptDataset, CSQADataset, PIQADataset, ANLIDataset
+from dataset_baselines import NSPDataset, SummarizationDataset, ConceptDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset
 from dataset_phase import Phase1Dataset
 import argparse
 from transformers import (
@@ -40,6 +40,8 @@ def get_dataset(tokenizer, type_path, args):
         return PIQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     elif data_dir_leaf == "anli":
         return ANLIDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+    elif data_dir_leaf == "openbookqa":
+        return OBQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length, use_KB=args.use_KB)
 
     if args.phase == 1:
         print("phase 1")
