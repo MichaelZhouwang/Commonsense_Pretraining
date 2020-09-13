@@ -1007,8 +1007,8 @@ class OBQADataset(Dataset):
         if not self.use_KB:
             input_ = "context: %s  options: %s </s>" % (input_, options)
         else:
-            article = example.article[0:300]
-            input_ = "article: %s  context: %s  options: %s  </s>" % (article, input_, options)
+            article = example.article
+            input_ = "context: %s  options: %s  article: %s </s>" % (input_, options, article)
 
         target = "%s </s>" % str(int(example.label) + 1)
 
