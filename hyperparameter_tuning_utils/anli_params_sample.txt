@@ -1,0 +1,5 @@
+max_seq_length train_batch_size eval_batch_size gradient_accumulation_steps num_train_epochs fp_16
+128 8 8 32  20  False
+128 2 8	32	20	False
+256 2 8	32	20	False
+512 2 8	32	20	False

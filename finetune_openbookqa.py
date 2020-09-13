@@ -78,7 +78,7 @@ def run():
     parser.add_argument('--seed', type=int, default=42,
                         help='Manual Seed Value')
 
-    args = parser.parse_args()
+    args = parser.parse_known_args()[0]
     print(args)
 
     # Create a folder if output_dir doesn't exists:

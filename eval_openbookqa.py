@@ -3,27 +3,35 @@ from sklearn.metrics import accuracy_score
 import pandas as pd
 import numpy as np
 import json
+import os
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ground_truth_labels", type=str, required=True)
-    parser.add_argument("--predicted_labels", type=str, required=True)
+    parser.add_argument("--ground_truth_labels_dir", type=str, default="datasets/openbookqa")
+    parser.add_argument("--predicted_labels_dir", type=str, required=True)
+    parser.add_argument("--output_dir", type=str, required=True)
 
-    args = parser.parse_args()
+    args = parser.parse_known_args()[0]
+
+    ground_truth_labels_file = os.path.join(args.ground_truth_labels_dir, "dev.jsonl")
+    predicted_labels_file = os.path.join(args.predicted_labels_dir, "dev.csv")
+    output_file = os.path.join(args.output_dir, "metrics_output.txt")
 
     LABELS = ['A', 'B', 'C', 'D']
     ground_truth_labels = []
-    with open(args.ground_truth_labels, "r") as f:
+    with open(ground_truth_labels_file, "r") as f:
         for cur_line in f:
             cur_dict = json.loads(cur_line)
             ground_truth_labels.append(LABELS.index(cur_dict["answerKey"]))
 
-    predicted_labels = pd.read_csv(args.predicted_labels, sep='\t', header=None).values.tolist()
+    predicted_labels = pd.read_csv(predicted_labels_file, sep='\t', header=None).values.tolist()
     for i in range(len(predicted_labels)):
         predicted_labels[i] = LABELS.index(predicted_labels[i][0])
 
-    print("Accuracy score = ", accuracy_score(ground_truth_labels, predicted_labels))
+    result_out = "Accuracy score = " + str(accuracy_score(ground_truth_labels, predicted_labels))
+    with open(output_file, "w") as f:
+        f.write(result_out)
 
     # stats = []
     # for _ in range(100):

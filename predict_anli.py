@@ -68,7 +68,7 @@ def run():
                         help='Batch size for Evaluation')
 
 
-    args = parser.parse_args()
+    args = parser.parse_known_args()[0]
     print(args)
 
     # Create a folder if output_dir doesn't exists:
