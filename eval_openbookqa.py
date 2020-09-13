@@ -14,6 +14,11 @@ if __name__ == "__main__":
 
     args = parser.parse_known_args()[0]
 
+    # Create a folder if output_dir doesn't exists:
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+        print("Creating output directory")
+
     ground_truth_labels_file = os.path.join(args.ground_truth_labels_dir, "dev.jsonl")
     predicted_labels_file = os.path.join(args.predicted_labels_dir, "dev.csv")
     output_file = os.path.join(args.output_dir, "metrics_output.txt")

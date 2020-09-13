@@ -1,8 +1,8 @@
 import json
 import os
 import argparse
-import sys
-sys.path.append("..")
+# import sys
+# sys.path.append("/".join(os.getcwd().split("/")[:-1]) + "/")
 
 def convertTextToParams(input_file):
     param_dict_seq = []
