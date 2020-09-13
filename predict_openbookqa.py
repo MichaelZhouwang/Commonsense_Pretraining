@@ -18,6 +18,35 @@ def set_seed(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
+def extractValLoss(checkpoint_path):
+    """Eg checkpoint path format: path_to_dir/checkpoint_epoch=4-val_loss=0.450662.ckpt"""
+
+    val_loss = float(re.search('val_loss=(.+?).ckpt', checkpoint_path).group(1))
+    return val_loss
+
+def extractStepOREpochNum(checkpoint_path):
+    """Eg checkpoint path format: path_to_dir/checkpoint_epoch=4.ckpt (or)
+        path_to_dir/checkpoint_epoch=4-step=50.ckpt (or)
+    """
+
+    if "step" in checkpoint_path:
+        num = int(re.search('step=(.+?).ckpt', checkpoint_path).group(1))
+    else:
+        num = int(re.search('epoch=(.+?).ckpt', checkpoint_path).group(1))
+    return num
+
+def getBestModelCheckpointPath(checkpoint_dir):
+    checkpoint_list = glob.glob(os.path.join(checkpoint_dir, "checkpoint_*.ckpt"))
+
+    try:
+        # Get the checkpoint with lowest validation loss
+        sorted_list = sorted(checkpoint_list, key=lambda x: extractValLoss(x.split("/")[-1]))
+    except:
+        # If validation loss is not present, get the checkpoint with highest step number or epoch number.
+        sorted_list = sorted(checkpoint_list, key=lambda x: extractStepOREpochNum(x.split("/")[-1]), reverse=True)
+
+    return sorted_list[0]
+
 def run():
     #torch.multiprocessing.freeze_support()
     set_seed(42)
@@ -47,8 +76,8 @@ def run():
         os.makedirs(args.output_dir)
         print("Creating output directory")
 
-    checkpoints = list(sorted(glob.glob(os.path.join(args.checkpoint_dir, "checkpoint_epoch=*.ckpt"), recursive=True)))
-    print("Using checkpoint = ", str(checkpoints[-1]))
+    best_checkpoint_path = getBestModelCheckpointPath(args.checkpoint_dir)
+    print("Using checkpoint = ", str(best_checkpoint_path))
 
     t5model = T5FineTuner.load_from_checkpoint(checkpoints[-1])
     tokenizer = T5Tokenizer.from_pretrained(args.tokenizer_name_or_path)
