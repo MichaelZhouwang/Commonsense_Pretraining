@@ -79,7 +79,7 @@ def run():
     best_checkpoint_path = getBestModelCheckpointPath(args.checkpoint_dir)
     print("Using checkpoint = ", str(best_checkpoint_path))
 
-    t5model = T5FineTuner.load_from_checkpoint(checkpoints[-1])
+    t5model = T5FineTuner.load_from_checkpoint(best_checkpoint_path)
     tokenizer = T5Tokenizer.from_pretrained(args.tokenizer_name_or_path)
     test_csvfile = open(os.path.join(args.output_dir, 'dev.csv'),'w')
     test_writer = csv.writer(test_csvfile)
