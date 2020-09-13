@@ -15,7 +15,7 @@ class CustomCheckpointCallback(pl.Callback):
         cur_epoch = trainer.current_epoch
         cur_global_step = trainer.global_step
         if cur_global_step % self.save_every_n_steps == 0:
-            file_name = self.prefix + "epoch=" + str(cur_epoch) + "_step=" + str(cur_global_step) + ".ckpt"
+            file_name = self.prefix + "epoch=" + str(cur_epoch) + "-step=" + str(cur_global_step) + ".ckpt"
             ckpt_path = os.path.join(self.filepath, file_name)
 
             # Store the trainer only once for every ckpt path name:
