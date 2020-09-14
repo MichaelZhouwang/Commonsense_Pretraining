@@ -17,7 +17,6 @@ if __name__ == "__main__":
     # Create a folder if output_dir doesn't exists:
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
-        print("Creating output directory")
 
     ground_truth_labels_file = os.path.join(args.ground_truth_labels_dir, "dev.jsonl")
     predicted_labels_file = os.path.join(args.predicted_labels_dir, "dev.csv")
@@ -34,7 +33,8 @@ if __name__ == "__main__":
     for i in range(len(predicted_labels)):
         predicted_labels[i] = LABELS.index(predicted_labels[i][0])
 
-    result_out = "Accuracy score = " + str(accuracy_score(ground_truth_labels, predicted_labels))
+    result_out = "Accuracy score = " + str(accuracy_score(ground_truth_labels, predicted_labels)) + "\n"
+    print(result_out)
     with open(output_file, "w") as f:
         f.write(result_out)
 

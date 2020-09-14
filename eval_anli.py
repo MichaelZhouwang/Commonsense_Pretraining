@@ -16,7 +16,6 @@ if __name__ == "__main__":
     # Create a folder if output_dir doesn't exists:
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
-        print("Creating output directory")
 
     ground_truth_labels_file = os.path.join(args.ground_truth_labels_dir, "dev-labels.lst")
     predicted_labels_file = os.path.join(args.predicted_labels_dir, "dev.csv")
@@ -25,7 +24,8 @@ if __name__ == "__main__":
     labels = pd.read_csv(ground_truth_labels_file, sep='\t', header=None).values.tolist()
     preds = pd.read_csv(predicted_labels_file, sep='\t', header=None).values.tolist()
 
-    result_out = "Accuracy score = " + str(accuracy_score(labels, preds))
+    result_out = "Accuracy score = " + str(accuracy_score(labels, preds)) + "\n"
+    print(result_out)
     with open(output_file, "w") as f:
         f.write(result_out)
 
