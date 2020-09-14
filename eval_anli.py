@@ -18,7 +18,7 @@ if __name__ == "__main__":
         os.makedirs(args.output_dir)
         print("Creating output directory")
 
-    ground_truth_labels_file = os.path.join(args.ground_truth_labels_dir, "dev.jsonl")
+    ground_truth_labels_file = os.path.join(args.ground_truth_labels_dir, "dev-labels.lst")
     predicted_labels_file = os.path.join(args.predicted_labels_dir, "dev.csv")
     output_file = os.path.join(args.output_dir, "metrics_output.txt")
 
