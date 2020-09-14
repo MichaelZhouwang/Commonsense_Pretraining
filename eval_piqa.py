@@ -1,21 +1,33 @@
+import argparse
+from sklearn.metrics import accuracy_score
+import pandas as pd
+import numpy as np
+import os
+
 if __name__ == "__main__":
 
-    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ground_truth_labels_dir", type=str, default="datasets/piqa")
+    parser.add_argument("--predicted_labels_dir", type=str, required=True)
+    parser.add_argument("--output_dir", type=str, required=True)
 
-    parser = argparse.ArgumentParser("evaluate script")
-    parser.add_argument("--input_x", type=str, required=True)
-    parser.add_argument("--input_y", type=str, required=True)
-    parser.add_argument("--prediction", type=str, required=True)
+    args = parser.parse_known_args()[0]
 
-    args = parser.parse_args()
+    # Create a folder if output_dir doesn't exists:
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+        print("Creating output directory")
 
-    from sklearn.metrics import accuracy_score
-    import pandas as pd
-    import numpy as np
+    ground_truth_labels_file = os.path.join(args.ground_truth_labels_dir, "valid-labels.lst")
+    predicted_labels_file = os.path.join(args.predicted_labels_dir, "dev.csv")
+    output_file = os.path.join(args.output_dir, "metrics_output.txt")
 
-    labels = pd.read_csv(args.input_y, sep='\t', header=None).values.tolist()
-    preds = pd.read_csv(args.prediction, sep='\t', header=None).values.tolist()
-    print(accuracy_score(labels, preds))
+    labels = pd.read_csv(ground_truth_labels_file, sep='\t', header=None).values.tolist()
+    preds = pd.read_csv(predicted_labels_file, sep='\t', header=None).values.tolist()
+
+    result_out = "Accuracy score = " + str(accuracy_score(labels, preds))
+    with open(output_file, "w") as f:
+        f.write(result_out)
 
     # stats = []
     # for _ in range(100):

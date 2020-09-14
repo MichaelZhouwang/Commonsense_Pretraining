@@ -3,6 +3,7 @@ import csv
 import argparse
 from trainer import *
 from tqdm import tqdm
+import re
 from transformers import (
     AdamW,
     T5ForConditionalGeneration,
@@ -18,6 +19,35 @@ def set_seed(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
+def extractValLoss(checkpoint_path):
+    """Eg checkpoint path format: path_to_dir/checkpoint_epoch=4-val_loss=0.450662.ckpt"""
+
+    val_loss = float(re.search('val_loss=(.+?).ckpt', checkpoint_path).group(1))
+    return val_loss
+
+def extractStepOREpochNum(checkpoint_path):
+    """Eg checkpoint path format: path_to_dir/checkpoint_epoch=4.ckpt (or)
+        path_to_dir/checkpoint_epoch=4-step=50.ckpt (or)
+    """
+
+    if "step" in checkpoint_path:
+        num = int(re.search('step=(.+?).ckpt', checkpoint_path).group(1))
+    else:
+        num = int(re.search('epoch=(.+?).ckpt', checkpoint_path).group(1))
+    return num
+
+def getBestModelCheckpointPath(checkpoint_dir):
+    checkpoint_list = glob.glob(os.path.join(checkpoint_dir, "checkpoint_*.ckpt"))
+
+    try:
+        # Get the checkpoint with lowest validation loss
+        sorted_list = sorted(checkpoint_list, key=lambda x: extractValLoss(x.split("/")[-1]))
+    except:
+        # If validation loss is not present, get the checkpoint with highest step number or epoch number.
+        sorted_list = sorted(checkpoint_list, key=lambda x: extractStepOREpochNum(x.split("/")[-1]), reverse=True)
+
+    return sorted_list[0]
+
 def run():
     #torch.multiprocessing.freeze_support()
     set_seed(42)
@@ -26,60 +56,18 @@ def run():
 
     parser.add_argument('--data_dir', type=str, default="datasets/piqa",
                         help='Path for Data files')
-    parser.add_argument('--output_dir', type=str, default="outputs/csqa",
-                        help='Path to save the checkpoints')
-    parser.add_argument('--checkpoint_dir', type=str, default="outputs/csqa_output_epoch10",
+    parser.add_argument('--output_dir', type=str, default="outputs/piqa_prediction_outputs",
+                        help='Path to save the predictions')
+    parser.add_argument('--checkpoint_dir', type=str, default="outputs/piqa_outputs",
                         help='Checkpoint directory')
-
-    parser.add_argument('--model_name_or_path', type=str, default="t5-base",
-                        help='Model name or Path')
     parser.add_argument('--tokenizer_name_or_path', type=str, default="t5-base",
                         help='Tokenizer name or Path')
-    parser.add_argument('--nsp_generate', type=lambda x: (str(x).lower() == 'true'), default="False",
-                        help='Whether to generate NSP?')
-
-    # you can find out more on optimisation levels here https://nvidia.github.io/apex/amp.html#opt-levels-and-properties
-    parser.add_argument('--opt_level', type=str, default="01",
-                        help='Optimization level')
-    parser.add_argument('--early_stop_callback', type=lambda x: (str(x).lower() == 'true'), default="False",
-                        help='Whether to do early stopping?')
-
-    # if you want to enable 16-bit training then install apex and set this to true
-    parser.add_argument('--fp_16', type=lambda x: (str(x).lower() == 'true'), default="True",
-                        help='Whether to use 16 bit precision floating point operations?')
-
-    parser.add_argument('--learning_rate', type=float, default=3e-4,
-                        help='Learning Rate')
-    parser.add_argument('--weight_decay', type=float, default=0.0,
-                        help='Weight decay')
-    parser.add_argument('--adam_epsilon', type=float, default=1e-8,
-                        help='Epsilon value for Adam Optimizer')
-
-    # if you enable 16-bit training then set this to a sensible value, 0.5 is a good default
-    parser.add_argument('--max_grad_norm', type=float, default=1.0,
-                        help='Maximum Gradient Norm value for Clipping')
-
-
     parser.add_argument('--max_seq_length', type=int, default=128,
                         help='Maximum Sequence Length')
-    parser.add_argument('--warmup_steps', type=int, default=0,
-                        help='Number of warmup steps')
-    parser.add_argument('--train_batch_size', type=int, default=4,
-                        help='Batch size for Training')
     parser.add_argument('--eval_batch_size', type=int, default=4,
                         help='Batch size for Evaluation')
-    parser.add_argument('--num_train_epochs', type=int, default=10,
-                        help='Number of Training epochs')
-    parser.add_argument('--gradient_accumulation_steps', type=int, default=16,
-                        help='Gradient Accumulation Steps')
-    parser.add_argument('--n_gpu', type=int, default=1,
-                        help='Number of GPUs to use for computation')
-    parser.add_argument('--gpu_nums', type=str, default="0",
-                        help='GPU ids separated by "," to use for computation')
-    parser.add_argument('--seed', type=int, default=42,
-                        help='Manual Seed Value')
 
-    args = parser.parse_args()
+    args = parser.parse_known_args()[0]
     print(args)
 
     # Create a folder if output_dir doesn't exists:
@@ -87,11 +75,11 @@ def run():
         os.makedirs(args.output_dir)
         print("Creating output directory")
 
-    checkpoints = list(sorted(glob.glob(os.path.join(args.checkpoint_dir, "checkpoint_epoch=*.ckpt"), recursive=True)))
-    print("Using checkpoint = ", str(checkpoints[-1]))
+    best_checkpoint_path = getBestModelCheckpointPath(args.checkpoint_dir)
+    print("Using checkpoint = ", str(best_checkpoint_path))
 
-    t5model = T5FineTuner.load_from_checkpoint(checkpoints[-1])
-    tokenizer = T5Tokenizer.from_pretrained(args.model_name_or_path)
+    t5model = T5FineTuner.load_from_checkpoint(best_checkpoint_path)
+    tokenizer = T5Tokenizer.from_pretrained(args.tokenizer_name_or_path)
     test_csvfile = open(os.path.join(args.output_dir, 'dev.csv'),'w')
     test_writer = csv.writer(test_csvfile)
     proc = PIQAProcessor()

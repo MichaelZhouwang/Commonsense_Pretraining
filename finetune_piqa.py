@@ -23,12 +23,12 @@ def run():
 
     parser.add_argument('--data_dir', type=str, default="datasets/piqa",
                         help='Path for Data files')
-    parser.add_argument('--output_dir', type=str, default="outputs/piqa_", # model_save/piqa-fp32-max128-2e5-batch2
+    parser.add_argument('--output_dir', type=str, default="outputs/piqa_outputs", # model_save/piqa-fp32-max128-2e5-batch2
                         help='Path to save the checkpoints')
     parser.add_argument('--checkpoint_dir', type=str, default="",
                         help='Checkpoint directory')
-    parser.add_argument('--save_every_n_steps', type=int, default=10,  # model_save/piqa-fp32-max128-3e4
-                        help='Interval of training steps to save the model checkpoints')
+    parser.add_argument('--save_every_n_steps', type=int, default=-1,  # model_save/piqa-fp32-max128-3e4
+                        help='Interval of training steps to save the model checkpoints. Use -1 to disable this callback')
 
     parser.add_argument('--model_name_or_path', type=str, default="t5-base",
                         help='Model name or Path')
@@ -76,7 +76,7 @@ def run():
     parser.add_argument('--seed', type=int, default=42,
                         help='Manual Seed Value')
 
-    args = parser.parse_args()
+    args = parser.parse_known_args()[0]
     print(args)
 
     # Create a folder if output_dir doesn't exists:
@@ -85,12 +85,15 @@ def run():
         print("Creating output directory")
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        filepath=args.output_dir, prefix="checkpoint_", monitor="val_loss", mode="min", save_top_k=5
+        filepath=args.output_dir + "/{epoch}-{val_loss:.6f}", prefix="checkpoint_", monitor="val_loss", mode="min", save_top_k=5
     )
 
-    custom_checkpoint_callback = CustomCheckpointCallback(
-        filepath=args.output_dir, prefix="checkpoint_", save_every_n_steps=args.save_every_n_steps
-    )
+    trainer_custom_callbacks = [LoggingCallback()]
+    if args.save_every_n_steps != -1:
+        custom_checkpoint_callback = CustomCheckpointCallback(
+            filepath=args.output_dir, prefix="checkpoint_", save_every_n_steps=args.save_every_n_steps
+        )
+        trainer_custom_callbacks.append(custom_checkpoint_callback)
 
     train_params = dict(
         accumulate_grad_batches=args.gradient_accumulation_steps,
@@ -101,7 +104,7 @@ def run():
         amp_level=args.opt_level,
         gradient_clip_val=args.max_grad_norm,
         checkpoint_callback=checkpoint_callback,
-        callbacks=[LoggingCallback()],
+        callbacks=trainer_custom_callbacks,
         distributed_backend='ddp'
     )
 
