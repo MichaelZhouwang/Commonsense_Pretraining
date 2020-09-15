@@ -2,7 +2,8 @@
   "max_seq_length": [128, 256, 512],
   "train_batch_size": [2],
   "eval_batch_size": [8],
-  "gradient_accumulation_steps": [32],
+  "gradient_accumulation_steps": [16, 32],
   "num_train_epochs": [20],
-  "fp_16": ["False"]
+  "learning_rate": [2e-5, 1e-4, 2e-4, 3e-4, 5e-3],
+  "fp_16": ["True","False"]
 }

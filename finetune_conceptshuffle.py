@@ -22,6 +22,8 @@ def run():
 
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--phase', type=int, default=0,
+                        help='phase number')
     parser.add_argument('--data_dir', type=str, default="datasets/wikitext-2-raw",
                         help='Path for Data files')
     parser.add_argument('--output_dir', type=str, default="outputs/nsp_new_wiki_generate",

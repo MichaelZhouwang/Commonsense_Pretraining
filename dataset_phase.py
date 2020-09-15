@@ -18,11 +18,12 @@ import tensorflow_datasets as tfds
 # import warnings
 # warnings.filterwarnings("ignore", category=Warning)
 class Phase1Dataset(Dataset):
-    def __init__(self, tokenizer, data_dir, type_path, max_len=512):
+    def __init__(self, tokenizer, data_dir, type_path, max_len=512, option=1):
         self.type_path = type_path
         self.file_path = os.path.join(data_dir)
         self.files = glob.glob("%s/wiki.%s.raw" % (self.file_path, type_path))
 
+        self.option = option #option = 1 (number) =2 (text)
         self.max_len = max_len
         self.tokenizer = tokenizer
         self.inputs = []
@@ -167,8 +168,8 @@ class Phase1Dataset(Dataset):
 
                 target_label = tf.cond(
                     negative_sampling,
-                    lambda: "1 </s>",
-                    lambda: "2 </s>",
+                    lambda: x['text'],
+                    lambda: x['text'],
                 )
 
                 inputs = []
