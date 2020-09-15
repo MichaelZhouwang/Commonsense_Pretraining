@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset_phase import Phase1Dataset
+from dataset_discriminator import Phase1Dataset
 import argparse
 from transformers import (
     AdamW,

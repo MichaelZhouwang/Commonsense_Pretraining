@@ -1,24 +1,8 @@
-import glob
-import os
-import json
-import time
-import logging
-import random
-import re
-from itertools import chain
-from string import punctuation
-
-# import nltk
-# nltk.download('punkt')
-# from nltk.tokenize import sent_tokenize
-
-import pandas as pd
-import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset_baselines import NSPDataset, SummarizationDataset, ConceptDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset
-from dataset_phase import Phase1Dataset
+from dataset_baselines import NSPDataset, SummarizationDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset
+from dataset_discriminator import Option1Dataset, Option2Dataset, Option3Dataset
 import argparse
 from transformers import (
     AdamW,
@@ -43,14 +27,13 @@ def get_dataset(tokenizer, type_path, args):
     elif data_dir_leaf == "openbookqa":
         return OBQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length, use_KB=args.use_KB)
 
-    if args.phase == 1:
-        print("phase 1")
-        return Phase1Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
-    if args.concept_generate:
-        return ConceptDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
-    else:
-        return NSPDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,
-                          nsp_generate=args.nsp_generate, concept_generate=args.concept_generate, max_len=args.max_seq_length)
+    if args.format_option == 1: # choice of string
+        return Option1Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+    if args.format_option == 2: # string of choice
+        return Option2Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+    if args.format_option == 3: # True / False
+        return Option3Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+
 
 class T5FineTuner(pl.LightningModule):
     def __init__(self, hparams):

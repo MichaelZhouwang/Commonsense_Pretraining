@@ -6,7 +6,6 @@ import torch
 import argparse
 import os
 import pytorch_lightning as pl
-from dataset_baselines import NSPDataset
 from trainer import *
 
 def set_seed(seed):
@@ -22,11 +21,11 @@ def run():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--phase', type=int, default=0,
-                        help='phase number')
+    parser.add_argument('--format_option', type=int, default="",
+                        help='format number (1 : choice, 2: sentence of choice, 3: True, False')
     parser.add_argument('--data_dir', type=str, default="datasets/wikitext-2-raw",
                         help='Path for Data files')
-    parser.add_argument('--output_dir', type=str, default="outputs/nsp_new_wiki_generate",
+    parser.add_argument('--output_dir', type=str, default="model_save/phase1_2",
                         help='Path to save the checkpoints')
     parser.add_argument('--checkpoint_dir', type=str, default="",
                         help='Checkpoint directory')
@@ -92,7 +91,7 @@ def run():
         print("Creating output directory")
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        filepath=args.output_dir, prefix="checkpoint", monitor="val_loss", mode="min", save_top_k=5
+        filepath=args.output_dir, prefix="checkpoint_", monitor="val_loss", mode="min", save_top_k=5
     )
 
     custom_checkpoint_callback = CustomCheckpointCallback(
