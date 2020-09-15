@@ -1,23 +1,8 @@
-import glob
-import os
-import json
-import time
-import logging
-import random
-import re
-from itertools import chain
-from string import punctuation
-
-# import nltk
-# nltk.download('punkt')
-# from nltk.tokenize import sent_tokenize
-
-import pandas as pd
-import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset_discriminator import Phase1Dataset
+from dataset_baselines import NSPDataset, SummarizationDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset
+from dataset_discriminator import Option1Dataset, Option2Dataset, Option3Dataset
 import argparse
 from transformers import (
     AdamW,
@@ -28,14 +13,13 @@ from transformers import (
 
 def get_dataset(tokenizer, type_path, args):
     print(args.data_dir)
-    if args.phase == 2:
-        print("phase 2")
-        return Phase2Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
-    if args.concept_generate:
-        return ConceptDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
-    else:
-        return NSPDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,
-                          nsp_generate=args.nsp_generate, concept_generate=args.concept_generate, max_len=args.max_seq_length)
+    if args.format_option == 1: # choice of string
+        return Option1Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+    if args.format_option == 2: # string of choice
+        return Option2Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+    if args.format_option == 3: # True / False
+        return Option3Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+
 
 class T5FineTuner(pl.LightningModule):
     def __init__(self, hparams):
@@ -45,22 +29,34 @@ class T5FineTuner(pl.LightningModule):
         self.hparams = hparams
         print("Model params: ", self.hparams)
 
-        self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+        self.generator = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+        self.discriminator = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+
+        # checkpoints = list(
+        #     sorted(glob.glob(os.path.join(args.checkpoint_dir, "checkpoint_epoch=*.ckpt"), recursive=True)))
+        # print("Using checkpoint = ", str(checkpoints[-1]))
+        # checkpoint_state = torch.load(checkpoints[-1])
+        # model = T5FineTuner(args)
+        # model.load_state_dict(checkpoint_state['state_dict'])
+
         self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
 
     def is_logger(self):
-        return True #temporary fix (only work at single GPU env)
+        return True
 
-    def forward(
-            self, input_ids, attention_mask=None, decoder_input_ids=None, decoder_attention_mask=None, lm_labels=None
-    ):
-        return self.model(
-            input_ids,
-            attention_mask=attention_mask,
-            decoder_input_ids=decoder_input_ids,
-            decoder_attention_mask=decoder_attention_mask,
-            lm_labels=lm_labels,
-        )
+    def forward(self, input_ids, attention_mask=None, decoder_input_ids=None, decoder_attention_mask=None, lm_labels=None):
+
+        batch_sentences = self.tokenizer.decode(input_ids)
+        print(batch_sentences)
+
+        generator_loss, generator_output = self.generator(input_ids,
+                                                          attention_mask=attention_mask,
+                                                          decoder_input_ids=decoder_input_ids,
+                                                          decoder_attention_mask=decoder_attention_mask,
+                                                          lm_labels=lm_labels)
+
+
+        return generator_loss
 
     def _step(self, batch):
         lm_labels = batch["target_ids"]
@@ -142,9 +138,8 @@ class T5FineTuner(pl.LightningModule):
         scheduler = get_linear_schedule_with_warmup(
             self.opt, num_warmup_steps=self.hparams.warmup_steps, num_training_steps=t_total
         )
+
         self.lr_scheduler = scheduler
-        print(len(dataloader.dataset))
-        print(t_total)
         return dataloader
 
     def val_dataloader(self):

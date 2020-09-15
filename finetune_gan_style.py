@@ -6,8 +6,8 @@ import torch
 import argparse
 import os
 import pytorch_lightning as pl
-from dataset_baselines import NSPDataset
 from trainer import *
+import glob
 
 def set_seed(seed):
     random.seed(seed)
@@ -22,9 +22,11 @@ def run():
 
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--format_option', type=int, default=0,
+                        help='format number (1 : choice, 2: sentence of choice, 3: True, False')
     parser.add_argument('--data_dir', type=str, default="datasets/wikitext-2-raw",
                         help='Path for Data files')
-    parser.add_argument('--output_dir', type=str, default="outputs/nsp_new_wiki_generate",
+    parser.add_argument('--output_dir', type=str, default="model_save/phase1_2",
                         help='Path to save the checkpoints')
     parser.add_argument('--checkpoint_dir', type=str, default="",
                         help='Checkpoint directory')
@@ -36,9 +38,9 @@ def run():
     parser.add_argument('--tokenizer_name_or_path', type=str, default="t5-base",
                         help='Tokenizer name or Path')
 
-    parser.add_argument('--nsp_generate', type=lambda x: (str(x).lower() == 'true'), default="True",
+    parser.add_argument('--nsp_generate', type=lambda x: (str(x).lower() == 'true'), default="False",
                         help='Whether to generate NSP?')
-    parser.add_argument('--concept_generate', type=lambda x: (str(x).lower() == 'true'), default="False",
+    parser.add_argument('--concept_generate', type=lambda x: (str(x).lower() == 'true'), default="True",
                         help='Whether to do generate Concept?')
 
     # you can find out more on optimisation levels here https://nvidia.github.io/apex/amp.html#opt-levels-and-properties
@@ -90,7 +92,7 @@ def run():
         print("Creating output directory")
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        filepath=args.output_dir, prefix="checkpoint", monitor="val_loss", mode="min", save_top_k=5
+        filepath=args.output_dir, prefix="checkpoint_", monitor="val_loss", mode="min", save_top_k=5
     )
 
     custom_checkpoint_callback = CustomCheckpointCallback(
