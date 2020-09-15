@@ -30,7 +30,7 @@ def run():
     parser.add_argument('--checkpoint_dir', type=str, default="",
                         help='Checkpoint directory')
     parser.add_argument('--save_every_n_steps', type=int, default=-1,
-                        help='Interval of training steps to save the model checkpoints')
+                        help='Interval of training steps to save the model checkpoints. Use -1 to disable this callback')
 
     parser.add_argument('--model_name_or_path', type=str, default="t5-base",
                         help='Model name or Path')

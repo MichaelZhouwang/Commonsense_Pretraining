@@ -1,8 +1,8 @@
 import json
 import os
 import argparse
-import sys
-sys.path.append("..")
+# import sys
+# sys.path.append("/".join(os.getcwd().split("/")[:-1]) + "/")
 
 def convertTextToParams(input_file):
     param_dict_seq = []
@@ -79,23 +79,39 @@ if __name__ == "__main__":
     else:
         param_dict_seq = convertTextToParams(args.param_file)
 
+    total_config_counts = len(param_dict_seq)
+    cur_config_count = 0
     for cur_param_seq in param_dict_seq:
-        print("Running configuration:")
+        cur_config_count += 1
+        print("Running configuration {} out of {}:".format(cur_config_count, total_config_counts))
         print(cur_param_seq, "\n")
 
         cur_output_folder = os.path.join(args.root_output_dir, createFolderNameFromParamDict(cur_param_seq))
 
         # Finetuning:
         finetune_out_dir = os.path.join(cur_output_folder, 'finetuning')
+
+        # Create a folder if output_dir doesn't exists: (needed for storing the logs file)
+        if not os.path.exists(finetune_out_dir):
+            os.makedirs(finetune_out_dir)
+
+        finetune_log_file = os.path.join(finetune_out_dir, 'logs.txt')
         finetune_cmd = "python3 " + args.finetune_file + " " + convertDictToCmdArgs(cur_param_seq) + "--n_gpu " + str(args.n_gpu)\
-                       + " --gpu_nums " + str(args.gpu_nums) + " --output_dir " + finetune_out_dir
+                       + " --gpu_nums " + str(args.gpu_nums) + " --output_dir " + finetune_out_dir + " > " + finetune_log_file
         print(finetune_cmd, "\n")
         os.system(finetune_cmd)
 
         # Inference:
         predict_out_dir = os.path.join(cur_output_folder, 'prediction')
+
+        # Create a folder if output_dir doesn't exists: (needed for storing the logs file)
+        if not os.path.exists(predict_out_dir):
+            os.makedirs(predict_out_dir)
+
+        predict_log_file = os.path.join(predict_out_dir, 'logs.txt')
+
         predict_cmd = "python3 " + args.predict_file + " " + convertDictToCmdArgs(cur_param_seq) + " --checkpoint_dir " +\
-                      finetune_out_dir + " --output_dir " + predict_out_dir
+                      finetune_out_dir + " --output_dir " + predict_out_dir + " > " + predict_log_file
         print(predict_cmd, "\n")
         os.system(predict_cmd)
 

@@ -13,14 +13,19 @@ if __name__ == "__main__":
 
     args = parser.parse_known_args()[0]
 
-    ground_truth_labels_file = os.path.join(args.ground_truth_labels_dir, "dev.jsonl")
+    # Create a folder if output_dir doesn't exists:
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    ground_truth_labels_file = os.path.join(args.ground_truth_labels_dir, "dev-labels.lst")
     predicted_labels_file = os.path.join(args.predicted_labels_dir, "dev.csv")
     output_file = os.path.join(args.output_dir, "metrics_output.txt")
 
     labels = pd.read_csv(ground_truth_labels_file, sep='\t', header=None).values.tolist()
     preds = pd.read_csv(predicted_labels_file, sep='\t', header=None).values.tolist()
 
-    result_out = "Accuracy score = " + str(accuracy_score(labels, preds))
+    result_out = "Accuracy score = " + str(accuracy_score(labels, preds)) + "\n"
+    print(result_out)
     with open(output_file, "w") as f:
         f.write(result_out)
 

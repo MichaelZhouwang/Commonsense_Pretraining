@@ -1,0 +1,8 @@
+{
+  "max_seq_length": [128, 256, 512],
+  "train_batch_size": [2],
+  "eval_batch_size": [4],
+  "gradient_accumulation_steps": [16],
+  "num_train_epochs": [1],
+  "fp_16": ["False"]
+}
