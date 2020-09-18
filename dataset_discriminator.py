@@ -203,6 +203,8 @@ class Option1Dataset(Dataset):
             tmp_target = []
 
             for i, data in tqdm(enumerate(tfds.as_numpy(dataset))):
+                if len(data['inputs'].decode('utf-8').split()) > self.max_len:
+                    continue
                 tmp_input.append(data['inputs'].decode('utf-8'))
                 tmp_target.append(data['targets'].decode('utf-8'))
 
@@ -377,8 +379,8 @@ class Option2Dataset(Dataset):
 
                 target_label = tf.cond(
                     negative_sampling,
-                    lambda: x['text'],
-                    lambda: x['text'],
+                    lambda: x['text'] + " </s>",
+                    lambda: x['text'] + " </s>",
                 )
 
                 inputs = []
@@ -419,6 +421,8 @@ class Option2Dataset(Dataset):
             tmp_target = []
 
             for i, data in tqdm(enumerate(tfds.as_numpy(dataset))):
+                if len(data['inputs'].decode('utf-8').split()) > self.max_len:
+                    continue
                 tmp_input.append(data['inputs'].decode('utf-8'))
                 tmp_target.append(data['targets'].decode('utf-8'))
 
@@ -597,8 +601,8 @@ class Option3Dataset(Dataset):
 
                 relation_label = tf.cond(
                     negative_sampling,
-                    lambda: 'true',
-                    lambda: 'false',
+                    lambda: 'true </s>',
+                    lambda: 'false </s>',
                 )
 
                 inputs = []
@@ -644,7 +648,7 @@ class Option3Dataset(Dataset):
 
             # tokenize targets
             tokenized_targets = self.tokenizer.batch_encode_plus(
-                tmp_target, max_length=7, pad_to_max_length=True, return_tensors="pt", truncation=True
+                tmp_target, max_length=2, pad_to_max_length=True, return_tensors="pt", truncation=True
             )
 
             for input, attention in zip(tokenized_inputs["input_ids"], tokenized_inputs["attention_mask"]):

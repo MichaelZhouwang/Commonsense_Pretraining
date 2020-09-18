@@ -6,7 +6,7 @@ import torch
 import argparse
 import os
 import pytorch_lightning as pl
-from trainer import *
+from trainer_gan_style import *
 import glob
 
 def set_seed(seed):

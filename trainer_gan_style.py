@@ -1,7 +1,6 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset_baselines import NSPDataset, SummarizationDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset
 from dataset_discriminator import Option1Dataset, Option2Dataset, Option3Dataset
 import argparse
 from transformers import (
@@ -27,55 +26,157 @@ class T5FineTuner(pl.LightningModule):
         if isinstance(hparams, dict):
             hparams = argparse.Namespace(**hparams)
         self.hparams = hparams
+        self.option = self.hparams.format_option
         print("Model params: ", self.hparams)
 
-        self.generator = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
-        self.discriminator = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+        self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+        self.generator_max_length = 128
+        self.generator_min_length = 1
 
-        # checkpoints = list(
-        #     sorted(glob.glob(os.path.join(args.checkpoint_dir, "checkpoint_epoch=*.ckpt"), recursive=True)))
-        # print("Using checkpoint = ", str(checkpoints[-1]))
-        # checkpoint_state = torch.load(checkpoints[-1])
-        # model = T5FineTuner(args)
-        # model.load_state_dict(checkpoint_state['state_dict'])
-
+        # TODO: sharing the weight between the generator and discriminator. -> then it's one model.
         self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
 
     def is_logger(self):
         return True
 
-    def forward(self, input_ids, attention_mask=None, decoder_input_ids=None, decoder_attention_mask=None, lm_labels=None):
+    def forward(self, discriminator_input_ids,
+                discriminator_attention_mask=None,
+                discriminator_decoder_input_ids=None,
+                discriminator_decoder_attention_mask=None,
+                discriminator_labels=None):
 
-        batch_sentences = self.tokenizer.decode(input_ids)
-        print(batch_sentences)
+        # original sentence / targets
+        device = discriminator_input_ids.device
+        batch_sentences = self.tokenizer.batch_decode(discriminator_input_ids)
+        batch_labels = self.tokenizer.batch_decode(discriminator_labels)
+        print(batch_labels)
 
-        generator_loss, generator_output = self.generator(input_ids,
-                                                          attention_mask=attention_mask,
-                                                          decoder_input_ids=decoder_input_ids,
-                                                          decoder_attention_mask=decoder_attention_mask,
-                                                          lm_labels=lm_labels)
+        # which setnence is correct ? option 1 : original 2 : concept-shuffled 1
+        # extract sentence that we gonna feed into the generator
+        batch_placeholder = []
+        if self.option == 1:
+            sentence_prefix = "Which sentence is correct?: "
+            without_prefix = [sent.split(sentence_prefix)[1] for sent in batch_sentences]
+            for batch_idx, (without_prefix_sentence, b_label) in enumerate(zip(without_prefix, batch_labels)):
+                after_option1 = without_prefix_sentence.split('options: 1: ')[1]
+                after_option2 = after_option1.split('2: ')
+                option = [after_option2[0].strip(), after_option2[1].strip()]
+                if b_label == '1':
+                    batch_placeholder.append([option, batch_idx, 2]) # need to change second one
+                if b_label == '2':
+                    batch_placeholder.append([option, batch_idx, 1]) # need to change first one
 
+        if self.option == 2:
+            sentence_prefix = "Which sentence is correct?: "
+            without_prefix = [sent.split(sentence_prefix)[1] for sent in batch_sentences]
+            for batch_idx, (without_prefix_sentence, b_label) in enumerate(zip(without_prefix, batch_labels)):
+                after_option1 = without_prefix_sentence.split('options: 1: ')[1]
+                after_option2 = after_option1.split('2: ')
+                option = [after_option2[0].strip(), after_option2[1].strip()]
+                if option[0].strip() == b_label.strip():
+                    batch_placeholder.append([option, batch_idx, 2]) # need to change second one
+                if option[1].strip() == b_label.strip():
+                    batch_placeholder.append([option, batch_idx, 1]) # need to change first one
 
-        return generator_loss
+        # if self.option == 3:
+        #     sentence_prefix = "Does this sentence make sense?: "
+        #     without_prefix = [sent.split(sentence_prefix)[1] for sent in batch_sentences]
+        #     for batch_idx, (option, b_label) in enumerate(zip(without_prefix, batch_labels)):
+        #         if b_label == 'true':
+        #             batch_placeholder.append([option, batch_idx, "true"])
+        #         if b_label == 'false':
+        #             batch_placeholder.append([option, batch_idx, "false"])
+
+        generator_prefix = "generate a sentence with the following concepts: "
+        fake_source = []
+        fake_target = []
+        for fake_batch in batch_placeholder:
+            if fake_batch[2] == 1:
+                fake_source.append(generator_prefix + fake_batch[0][0] + " </s>")
+                fake_target.append(fake_batch[0][1] + " </s>")
+            if fake_batch[2] == 2:
+                fake_source.append(generator_prefix + fake_batch[0][1] + " </s>")
+                fake_target.append(fake_batch[0][0] + " </s>")
+            if fake_batch[2] == "false":
+                #TODO : difficult to get original sentence in this setting
+                fake_source.append(generator_prefix + fake_batch[0] + " </s>")
+                fake_target.append(generator_prefix + fake_batch[0] + " </s>")
+
+        # using source and target to train the generator
+        generator_input = self.tokenizer.batch_encode_plus(
+            fake_source, max_length=self.generator_max_length, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        generator_target = self.tokenizer.batch_encode_plus(
+            fake_target, max_length=self.generator_max_length, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        generator_labels = generator_target["input_ids"]
+        generator_labels[generator_labels[:, :] == self.tokenizer.pad_token_id] = -100
+        generator_outputs = self.model(generator_input["input_ids"].to(device),
+                              attention_mask=generator_input["attention_mask"].to(device),
+                              decoder_input_ids=None,
+                              decoder_attention_mask=generator_target["attention_mask"].to(device),
+                              lm_labels=generator_labels.to(device))
+
+        generator_loss = generator_outputs[0]
+
+        # TODO : top-k, p sampling (need another decoding sampling)
+        fake_sentences_input_ids = self.model.generate(
+            input_ids=generator_input["input_ids"].to(device),
+            attention_mask=generator_input["attention_mask"].to(device),
+            num_beams=5,
+            length_penalty=0.6,
+            max_length=self.generator_max_length + 2,  # +2 from original because we start at step=1 and stop before max_length
+            min_length=self.generator_min_length + 1,  # +1 from original because we start at step=1
+            no_repeat_ngram_size=3,
+            early_stopping=True,
+        )
+
+        fake_sentences = [self.tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False) for g in fake_sentences_input_ids]
+        print("fake sentence", fake_sentences)
+
+        discriminator_input_sentences = []
+        for choice_list, fake_sentence in zip(batch_placeholder, fake_sentences):
+            if choice_list[2] == 1: # if the first one is changed
+                discriminator_input = sentence_prefix + 'options: 1: ' + fake_sentence + ' 2: ' + choice_list[0][1] + ' </s>'
+            if choice_list[2] == 2: # if the second one is changed
+                discriminator_input = sentence_prefix + 'options: 1: ' + choice_list[0][0] + ' 2: ' + fake_sentence + ' </s>'
+            discriminator_input_sentences.append(discriminator_input)
+
+        print(discriminator_input_sentences)
+
+        discriminator_input_regenerated = self.tokenizer.batch_encode_plus(
+            discriminator_input_sentences, max_length=self.hparams.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        discriminator_output = self.model(discriminator_input_regenerated["input_ids"].to(device),
+                                                  attention_mask=discriminator_input_regenerated["attention_mask"].to(device),
+                                                  decoder_input_ids=discriminator_decoder_input_ids,
+                                                  decoder_attention_mask=discriminator_decoder_attention_mask,
+                                                  lm_labels=discriminator_labels)
+
+        discriminator_loss = discriminator_output[0]
+
+        #TODO : combination weighting factor (ELECTRA weight factor)
+        #TODO : initialize two optimizer for generator loss and discriminator loss.
+        return generator_loss + discriminator_loss
 
     def _step(self, batch):
         lm_labels = batch["target_ids"]
         lm_labels[lm_labels[:, :] == self.tokenizer.pad_token_id] = -100
 
-        outputs = self(
-            input_ids=batch["source_ids"],
-            attention_mask=batch["source_mask"],
-            lm_labels=lm_labels,
-            decoder_attention_mask=batch['target_mask']
-        )
+        outputs = self(discriminator_input_ids=batch["source_ids"],
+                        discriminator_attention_mask=batch["source_mask"],
+                        discriminator_labels=lm_labels,
+                        discriminator_decoder_attention_mask=batch['target_mask'])
 
-        loss = outputs[0]
+        loss = outputs
 
         return loss
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
-
         tensorboard_logs = {"train_loss": loss}
         return {"loss": loss, "log": tensorboard_logs}
 
@@ -95,7 +196,6 @@ class T5FineTuner(pl.LightningModule):
 
     def configure_optimizers(self):
         "Prepare optimizer and schedule (linear warmup and decay)"
-
         model = self.model
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
@@ -108,6 +208,7 @@ class T5FineTuner(pl.LightningModule):
                 "weight_decay": 0.0,
             },
         ]
+
         optimizer = AdamW(optimizer_grouped_parameters, lr=self.hparams.learning_rate, eps=self.hparams.adam_epsilon)
         self.opt = optimizer
         return [optimizer]
@@ -122,14 +223,12 @@ class T5FineTuner(pl.LightningModule):
 
     def get_tqdm_dict(self):
         tqdm_dict = {"loss": "{:.3f}".format(self.trainer.avg_loss), "lr": self.lr_scheduler.get_last_lr()[-1]}
-
         return tqdm_dict
 
     def train_dataloader(self):
         train_dataset = get_dataset(tokenizer=self.tokenizer, type_path="train", args=self.hparams)
         dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, drop_last=True, shuffle=True,
                                 num_workers=16)
-
         t_total = (
                 (len(dataloader.dataset) // (self.hparams.train_batch_size * max(1, self.hparams.n_gpu)))
                 // self.hparams.gradient_accumulation_steps
