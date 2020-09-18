@@ -22,8 +22,6 @@ def run():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--format_option', type=int, default=0,
-                        help='format number (1 : choice, 2: sentence of choice, 3: True, False')
     parser.add_argument('--data_dir', type=str, default="datasets/wikitext-2-raw",
                         help='Path for Data files')
     parser.add_argument('--output_dir', type=str, default="model_save/phase1_2",
