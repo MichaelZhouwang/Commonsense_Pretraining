@@ -4,8 +4,10 @@
 import csv
 from typing import *
 import logging
+import os
 import sys
 import json
+import argparse
 
 EXIT_STATUS_ANSWERS_MALFORMED = 1
 EXIT_STATUS_PREDICTIONS_MALFORMED = 2
@@ -102,31 +104,28 @@ def read_predictions(filename: str) -> Dict[str, List[str]]:
 
 
 def main():
-    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ground_truth_labels_dir", type=str, default="datasets/csqa")
+    parser.add_argument("--predicted_labels_dir", type=str, required=True)
+    parser.add_argument("--output_dir", type=str, required=True)
 
-    parser = argparse.ArgumentParser(description='Evaluate leaderboard predictions for questions.')
+    args = parser.parse_known_args()[0]
 
-    parser.add_argument(
-        '--question-answers', '-qa',
-        help='Filename of the question answers to read. Expects a JSONL file with documents that have field "id" and "answerKey".',
-        required=True)
-    parser.add_argument(
-        '--predictions', '-p',
-        help="Filename of the leaderboard predictions, in CSV format.",
-        required=True)
-    parser.add_argument(
-        '--output', '-o',
-        help='Output results to this file.',
-        required=True)
+    # Create a folder if output_dir doesn't exists:
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
 
-    args = parser.parse_args()
+    ground_truth_labels_file = os.path.join(args.ground_truth_labels_dir, "dev_rand_split.jsonl")
+    predicted_labels_file = os.path.join(args.predicted_labels_dir, "dev.csv")
+    output_file = os.path.join(args.output_dir, "metrics_output.txt")
 
-    question_answers = read_answers(args.question_answers)
-    predictions = read_predictions(args.predictions)
-    accuracy = calculate_accuracy(question_answers, predictions)
+    question_answers = read_answers(ground_truth_labels_file)
+    predictions = read_predictions(predicted_labels_file)
 
-    with open(args.output, "wt", encoding="UTF-8") as output:
-        output.write(json.dumps({"accuracy": accuracy}))
+    result_out = "Accuracy score = " + str(calculate_accuracy(question_answers, predictions)) + "\n"
+    print(result_out)
+    with open(output_file, "w") as f:
+        f.write(result_out)
 
 
 if __name__ == '__main__':
