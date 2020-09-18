@@ -10,7 +10,7 @@ from transformers import (
     T5Tokenizer,
     get_linear_schedule_with_warmup
 )
-from dataset_baselines import PIQAProcessor
+from dataset import PIQAProcessor
 
 def set_seed(seed):
     random.seed(seed)

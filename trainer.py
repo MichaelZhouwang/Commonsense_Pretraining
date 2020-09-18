@@ -1,24 +1,7 @@
-import glob
-import os
-import json
-import time
-import logging
-import random
-import re
-from itertools import chain
-from string import punctuation
-
-# import nltk
-# nltk.download('punkt')
-# from nltk.tokenize import sent_tokenize
-
-import pandas as pd
-import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset_baselines import NSPDataset, SummarizationDataset, ConceptDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset
-from dataset_phase import Phase1Dataset
+from dataset import SummarizationDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset
 import argparse
 from transformers import (
     AdamW,
@@ -27,13 +10,26 @@ from transformers import (
     get_linear_schedule_with_warmup
 )
 
+
 def get_dataset(tokenizer, type_path, args):
     print(args.data_dir)
     data_dir_leaf = args.data_dir.split("/")[-1]
+    # chunshu : 128 / 128
+    # dong-ho : 256 / 128
+    if data_dir_leaf == 'commongen' or data_dir_leaf == 't5_processed':
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_source_length, max_target_length=args.max_target_length)
 
-    if data_dir_leaf == 'commongen' or data_dir_leaf == 'keyword_lm' or data_dir_leaf == 'concept_deshuffling' or data_dir_leaf == 't5_processed':
-        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,
-                          max_source_length=args.max_source_length, max_target_length=args.max_target_length)
+    if data_dir_leaf == "keyword_lm" or data_dir_leaf == "concept_deshuffling":
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,max_source_length=args.max_seq_length, max_target_length=args.max_seq_length)
+    if data_dir_leaf == 'option1': # choice of string
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=2)
+    if data_dir_leaf == 'option2': # string of choice
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=int(args.max_seq_length / 2))
+    if data_dir_leaf == 'option3': # True / False
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=2)
+    if data_dir_leaf == 'mix': # True / False
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=int(args.max_seq_length / 2))
+
     elif data_dir_leaf == 'csqa':
         return CSQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     elif data_dir_leaf == 'piqa':
@@ -43,14 +39,6 @@ def get_dataset(tokenizer, type_path, args):
     elif data_dir_leaf == "openbookqa":
         return OBQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length, use_KB=args.use_KB)
 
-    if args.phase == 1:
-        print("phase 1")
-        return Phase1Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
-    if args.concept_generate:
-        return ConceptDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
-    else:
-        return NSPDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,
-                          nsp_generate=args.nsp_generate, concept_generate=args.concept_generate, max_len=args.max_seq_length)
 
 class T5FineTuner(pl.LightningModule):
     def __init__(self, hparams):
