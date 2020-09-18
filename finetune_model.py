@@ -17,7 +17,6 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 def run():
-    #torch.multiprocessing.freeze_support()
     set_seed(42)
 
     parser = argparse.ArgumentParser()
@@ -35,11 +34,6 @@ def run():
                         help='Model name or Path')
     parser.add_argument('--tokenizer_name_or_path', type=str, default="t5-base",
                         help='Tokenizer name or Path')
-
-    parser.add_argument('--nsp_generate', type=lambda x: (str(x).lower() == 'true'), default="False",
-                        help='Whether to generate NSP?')
-    parser.add_argument('--concept_generate', type=lambda x: (str(x).lower() == 'true'), default="True",
-                        help='Whether to do generate Concept?')
 
     # you can find out more on optimisation levels here https://nvidia.github.io/apex/amp.html#opt-levels-and-properties
     parser.add_argument('--opt_level', type=str, default="O1",

@@ -14,10 +14,13 @@ from transformers import (
 def get_dataset(tokenizer, type_path, args):
     print(args.data_dir)
     data_dir_leaf = args.data_dir.split("/")[-1]
-
-    if data_dir_leaf == 'commongen' or data_dir_leaf == 'keyword_lm' or data_dir_leaf == 'concept_deshuffling' or data_dir_leaf == 't5_processed':
+    # chunshu : 128 / 128
+    # dong-ho : 256 / 128
+    if data_dir_leaf == 'commongen' or data_dir_leaf == 't5_processed':
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_source_length, max_target_length=args.max_target_length)
 
+    if data_dir_leaf == "keyword_lm" or data_dir_leaf == "concept_deshuffling":
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,max_source_length=args.max_seq_length, max_target_length=args.max_seq_length)
     if data_dir_leaf == 'option1': # choice of string
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=2)
     if data_dir_leaf == 'option2': # string of choice

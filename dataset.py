@@ -283,10 +283,6 @@ class NSPDataset(Dataset):
                     {"input_ids": input, "attention_mask": attention}
                 )
 
-
-
-
-
 class SummarizationDataset(Dataset):
     def __init__(self, tokenizer, data_dir, type_path, max_source_length=32, max_target_length=32):
         self.data_dir = data_dir
