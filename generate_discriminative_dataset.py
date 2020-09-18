@@ -8,7 +8,12 @@ from generator.gpt2.gpt2_generator import *
 from generator.concept.concept_generator import *
 from tqdm import tqdm
 import tensorflow_datasets as tfds
-
+from transformers import (
+    AdamW,
+    T5ForConditionalGeneration,
+    T5Tokenizer,
+    get_linear_schedule_with_warmup
+)
 
 class Option1Dataset(Dataset):
     def __init__(self, tokenizer, data_dir, type_path, max_len=512, option=1):
@@ -22,6 +27,10 @@ class Option1Dataset(Dataset):
         self.inputs = []
         self.targets = []
         self.generator = ConceptGenerator()
+
+        self.source_text = []
+        self.target_text = []
+
         self._build()
 
     def __len__(self):
@@ -37,6 +46,17 @@ class Option1Dataset(Dataset):
 
     def _build(self):
         self._build_examples_from_files(self.files)
+
+        source = open('./option1/' + self.type_path+'.source', 'w')
+        target = open('./option1/' + self.type_path+'.target', 'w')
+
+        for st, tt in zip(self.source_text, self.target_text):
+            source.write("%s\n" % st)
+            target.write("%s\n" % tt)
+
+        source.close()
+        target.close()
+
 
     def neighboring_pairs_test(self, dataset, text_key='text'):
         def split_by_lines(dataset):
@@ -199,33 +219,12 @@ class Option1Dataset(Dataset):
                     tf.strings.length(x['inputs']), tf.strings.length(x['targets']))
 
             dataset = dataset.filter(lambda x: example_len(x) > 0)
-            tmp_input = []
-            tmp_target = []
 
             for i, data in tqdm(enumerate(tfds.as_numpy(dataset))):
                 if len(data['inputs'].decode('utf-8').split()) > self.max_len:
                     continue
-                tmp_input.append(data['inputs'].decode('utf-8'))
-                tmp_target.append(data['targets'].decode('utf-8'))
-
-            # tokenize inputs
-            tokenized_inputs = self.tokenizer.batch_encode_plus(
-                tmp_input, max_length=self.max_len, pad_to_max_length=True, return_tensors="pt", truncation=True
-            )
-
-            # tokenize targets
-            tokenized_targets = self.tokenizer.batch_encode_plus(
-                tmp_target, max_length=2, pad_to_max_length=True, return_tensors="pt", truncation=True
-            )
-
-            for input, attention in zip(tokenized_inputs["input_ids"], tokenized_inputs["attention_mask"]):
-                self.inputs.append(
-                    {"input_ids": input, "attention_mask": attention}
-                )
-            for input, attention in zip(tokenized_targets["input_ids"], tokenized_targets["attention_mask"]):
-                self.targets.append(
-                    {"input_ids": input, "attention_mask": attention}
-                )
+                self.source_text.append(data['inputs'].decode('utf-8'))
+                self.target_text.append(data['targets'].decode('utf-8'))
 
 
 class Option2Dataset(Dataset):
@@ -240,6 +239,10 @@ class Option2Dataset(Dataset):
         self.inputs = []
         self.targets = []
         self.generator = ConceptGenerator()
+
+        self.source_text = []
+        self.target_text = []
+
         self._build()
 
     def __len__(self):
@@ -255,6 +258,17 @@ class Option2Dataset(Dataset):
 
     def _build(self):
         self._build_examples_from_files(self.files)
+
+        source = open('./option2/' + self.type_path+'.source', 'w')
+        target = open('./option2/' + self.type_path+'.target', 'w')
+
+        for st, tt in zip(self.source_text, self.target_text):
+            source.write("%s\n" % st)
+            target.write("%s\n" % tt)
+
+        source.close()
+        target.close()
+
 
     def neighboring_pairs_test(self, dataset, text_key='text'):
         def split_by_lines(dataset):
@@ -417,47 +431,30 @@ class Option2Dataset(Dataset):
                     tf.strings.length(x['inputs']), tf.strings.length(x['targets']))
 
             dataset = dataset.filter(lambda x: example_len(x) > 0)
-            tmp_input = []
-            tmp_target = []
 
             for i, data in tqdm(enumerate(tfds.as_numpy(dataset))):
                 if len(data['inputs'].decode('utf-8').split()) > self.max_len:
                     continue
-                tmp_input.append(data['inputs'].decode('utf-8'))
-                tmp_target.append(data['targets'].decode('utf-8'))
-
-            # tokenize inputs
-            tokenized_inputs = self.tokenizer.batch_encode_plus(
-                tmp_input, max_length=self.max_len, pad_to_max_length=True, return_tensors="pt", truncation=True
-            )
-
-            # tokenize targets
-            tokenized_targets = self.tokenizer.batch_encode_plus(
-                tmp_target, max_length=2, pad_to_max_length=True, return_tensors="pt", truncation=True
-            )
-
-            for input, attention in zip(tokenized_inputs["input_ids"], tokenized_inputs["attention_mask"]):
-                self.inputs.append(
-                    {"input_ids": input, "attention_mask": attention}
-                )
-            for input, attention in zip(tokenized_targets["input_ids"], tokenized_targets["attention_mask"]):
-                self.targets.append(
-                    {"input_ids": input, "attention_mask": attention}
-                )
+                self.source_text.append(data['inputs'].decode('utf-8'))
+                self.target_text.append(data['targets'].decode('utf-8'))
 
 
 class Option3Dataset(Dataset):
-    def __init__(self, tokenizer, data_dir, type_path, max_len=512):
+    def __init__(self, tokenizer, data_dir, type_path, max_len=512, option=1):
         self.type_path = type_path
         self.file_path = os.path.join(data_dir)
         self.files = glob.glob("%s/wiki.%s.raw" % (self.file_path, type_path))
 
+        self.option = option #option = 1 (number) =2 (text)
         self.max_len = max_len
         self.tokenizer = tokenizer
         self.inputs = []
         self.targets = []
-
         self.generator = ConceptGenerator()
+
+        self.source_text = []
+        self.target_text = []
+
         self._build()
 
     def __len__(self):
@@ -473,6 +470,16 @@ class Option3Dataset(Dataset):
 
     def _build(self):
         self._build_examples_from_files(self.files)
+
+        source = open('./option3/' + self.type_path+'.source', 'w')
+        target = open('./option3/' + self.type_path+'.target', 'w')
+
+        for st, tt in zip(self.source_text, self.target_text):
+            source.write("%s\n" % st)
+            target.write("%s\n" % tt)
+
+        source.close()
+        target.close()
 
     def neighboring_pairs_test(self, dataset, text_key='text'):
         def split_by_lines(dataset):
@@ -634,28 +641,17 @@ class Option3Dataset(Dataset):
                     tf.strings.length(x['inputs']), tf.strings.length(x['targets']))
 
             dataset = dataset.filter(lambda x: example_len(x) > 0)
-            tmp_input = []
-            tmp_target = []
 
             for i, data in tqdm(enumerate(tfds.as_numpy(dataset))):
-                tmp_input.append(data['inputs'].decode('utf-8'))
-                tmp_target.append(data['targets'].decode('utf-8'))
+                if len(data['inputs'].decode('utf-8').split()) > self.max_len:
+                    continue
+                self.source_text.append(data['inputs'].decode('utf-8'))
+                self.target_text.append(data['targets'].decode('utf-8'))
 
-            # tokenize inputs
-            tokenized_inputs = self.tokenizer.batch_encode_plus(
-                tmp_input, max_length=self.max_len, pad_to_max_length=True, return_tensors="pt", truncation=True
-            )
-
-            # tokenize targets
-            tokenized_targets = self.tokenizer.batch_encode_plus(
-                tmp_target, max_length=2, pad_to_max_length=True, return_tensors="pt", truncation=True
-            )
-
-            for input, attention in zip(tokenized_inputs["input_ids"], tokenized_inputs["attention_mask"]):
-                self.inputs.append(
-                    {"input_ids": input, "attention_mask": attention}
-                )
-            for input, attention in zip(tokenized_targets["input_ids"], tokenized_targets["attention_mask"]):
-                self.targets.append(
-                    {"input_ids": input, "attention_mask": attention}
-                )
+tokenizer = T5Tokenizer.from_pretrained("t5-base")
+Option2Dataset(tokenizer=tokenizer, data_dir="datasets/wikitext-2-raw", type_path="train", max_len=256)
+Option2Dataset(tokenizer=tokenizer, data_dir="datasets/wikitext-2-raw", type_path="valid", max_len=256)
+Option1Dataset(tokenizer=tokenizer, data_dir="datasets/wikitext-2-raw", type_path="train", max_len=256)
+Option1Dataset(tokenizer=tokenizer, data_dir="datasets/wikitext-2-raw", type_path="valid", max_len=256)
+Option3Dataset(tokenizer=tokenizer, data_dir="datasets/wikitext-2-raw", type_path="train", max_len=256)
+Option3Dataset(tokenizer=tokenizer, data_dir="datasets/wikitext-2-raw", type_path="valid", max_len=256)

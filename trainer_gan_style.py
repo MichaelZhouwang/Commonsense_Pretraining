@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset_discriminator import Option1Dataset, Option2Dataset, Option3Dataset
+from dataset import SummarizationDataset
 import argparse
 from transformers import (
     AdamW,
@@ -13,12 +13,11 @@ from transformers import (
 def get_dataset(tokenizer, type_path, args):
     print(args.data_dir)
     if args.format_option == 1: # choice of string
-        return Option1Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=2)
     if args.format_option == 2: # string of choice
-        return Option2Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=int(args.max_seq_length / 2))
     if args.format_option == 3: # True / False
-        return Option3Dataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
-
+        return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=2)
 
 class T5FineTuner(pl.LightningModule):
     def __init__(self, hparams):
@@ -49,7 +48,6 @@ class T5FineTuner(pl.LightningModule):
         device = discriminator_input_ids.device
         batch_sentences = self.tokenizer.batch_decode(discriminator_input_ids)
         batch_labels = self.tokenizer.batch_decode(discriminator_labels)
-        print(batch_labels)
 
         # which setnence is correct ? option 1 : original 2 : concept-shuffled 1
         # extract sentence that we gonna feed into the generator
@@ -87,7 +85,7 @@ class T5FineTuner(pl.LightningModule):
         #         if b_label == 'false':
         #             batch_placeholder.append([option, batch_idx, "false"])
 
-        generator_prefix = "generate a sentence with the following concepts: "
+        generator_prefix = "correct the following sentence : "
         fake_source = []
         fake_target = []
         for fake_batch in batch_placeholder:
@@ -134,7 +132,6 @@ class T5FineTuner(pl.LightningModule):
         )
 
         fake_sentences = [self.tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False) for g in fake_sentences_input_ids]
-        print("fake sentence", fake_sentences)
 
         discriminator_input_sentences = []
         for choice_list, fake_sentence in zip(batch_placeholder, fake_sentences):

@@ -9,7 +9,7 @@ from transformers import (
     T5Tokenizer,
     get_linear_schedule_with_warmup
 )
-from dataset_baselines import OBQAProcessor
+from dataset import OBQAProcessor
 
 def set_seed(seed):
     random.seed(seed)
