@@ -5,6 +5,8 @@ import numpy as np
 import torch
 import argparse
 import os
+import re
+import glob
 import pytorch_lightning as pl
 from trainer import *
 
@@ -14,6 +16,35 @@ def set_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+def extractValLoss(checkpoint_path):
+    """Eg checkpoint path format: path_to_dir/checkpoint_epoch=4-val_loss=0.450662.ckpt"""
+
+    val_loss = float(re.search('val_loss=(.+?).ckpt', checkpoint_path).group(1))
+    return val_loss
+
+def extractStepOREpochNum(checkpoint_path):
+    """Eg checkpoint path format: path_to_dir/checkpoint_epoch=4.ckpt (or)
+        path_to_dir/checkpoint_epoch=4-step=50.ckpt (or)
+    """
+
+    if "step" in checkpoint_path:
+        num = int(re.search('step=(.+?).ckpt', checkpoint_path).group(1))
+    else:
+        num = int(re.search('epoch=(.+?).ckpt', checkpoint_path).group(1))
+    return num
+
+def getBestModelCheckpointPath(checkpoint_dir):
+    checkpoint_list = glob.glob(os.path.join(checkpoint_dir, "checkpoint_*.ckpt"))
+
+    try:
+        # Get the checkpoint with lowest validation loss
+        sorted_list = sorted(checkpoint_list, key=lambda x: extractValLoss(x.split("/")[-1]))
+    except:
+        # If validation loss is not present, get the checkpoint with highest step number or epoch number.
+        sorted_list = sorted(checkpoint_list, key=lambda x: extractStepOREpochNum(x.split("/")[-1]), reverse=True)
+
+    return sorted_list[0]
 
 def run():
     #torch.multiprocessing.freeze_support()
@@ -110,7 +141,15 @@ def run():
         distributed_backend='ddp'
     )
 
-    model = T5FineTuner(args)
+    if len(args.checkpoint_dir) != 0:
+        best_checkpoint_path = getBestModelCheckpointPath(args.checkpoint_dir)
+        print("Using checkpoint = ", str(best_checkpoint_path))
+        checkpoint_state = torch.load(best_checkpoint_path)
+        model = T5FineTuner(args)
+        model.load_state_dict(checkpoint_state['state_dict'])
+    else:
+        model = T5FineTuner(args)
+
     trainer = pl.Trainer(**train_params)
     trainer.fit(model)
 
