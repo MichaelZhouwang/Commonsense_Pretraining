@@ -12,11 +12,12 @@ from transformers import (
 
 def get_dataset(tokenizer, type_path, args):
     print(args.data_dir)
-    if args.format_option == 1: # choice of string
+    data_dir_leaf = args.data_dir.split("/")[-1]
+    if data_dir_leaf == 'option1': # choice of string
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=2)
-    if args.format_option == 2: # string of choice
+    if data_dir_leaf == 'option2': # string of choice
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=int(args.max_seq_length / 2))
-    if args.format_option == 3: # True / False
+    if data_dir_leaf == 'option3': # True / False
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=2)
 
 class T5FineTuner(pl.LightningModule):
@@ -25,12 +26,15 @@ class T5FineTuner(pl.LightningModule):
         if isinstance(hparams, dict):
             hparams = argparse.Namespace(**hparams)
         self.hparams = hparams
-        self.option = self.hparams.format_option
         print("Model params: ", self.hparams)
+        self.data_dir_leaf = self.hparams.data_dir.split("/")[-1]
 
         self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
         self.generator_max_length = 128
         self.generator_min_length = 1
+
+        self.generator_weight = 1.0
+        self.discriminator_weight = 50.0
 
         # TODO: sharing the weight between the generator and discriminator. -> then it's one model.
         self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
@@ -47,12 +51,14 @@ class T5FineTuner(pl.LightningModule):
         # original sentence / targets
         device = discriminator_input_ids.device
         batch_sentences = self.tokenizer.batch_decode(discriminator_input_ids)
+        discriminator_labels[discriminator_labels[:, :] == -100] = self.tokenizer.pad_token_id
         batch_labels = self.tokenizer.batch_decode(discriminator_labels)
 
         # which setnence is correct ? option 1 : original 2 : concept-shuffled 1
         # extract sentence that we gonna feed into the generator
         batch_placeholder = []
-        if self.option == 1:
+        deleted_idx = []
+        if self.data_dir_leaf == 'option1':
             sentence_prefix = "Which sentence is correct?: "
             without_prefix = [sent.split(sentence_prefix)[1] for sent in batch_sentences]
             for batch_idx, (without_prefix_sentence, b_label) in enumerate(zip(without_prefix, batch_labels)):
@@ -61,10 +67,12 @@ class T5FineTuner(pl.LightningModule):
                 option = [after_option2[0].strip(), after_option2[1].strip()]
                 if b_label == '1':
                     batch_placeholder.append([option, batch_idx, 2]) # need to change second one
-                if b_label == '2':
+                elif b_label == '2':
                     batch_placeholder.append([option, batch_idx, 1]) # need to change first one
+                else:
+                    deleted_idx.append(batch_idx)
 
-        if self.option == 2:
+        if self.data_dir_leaf == 'option2':
             sentence_prefix = "Which sentence is correct?: "
             without_prefix = [sent.split(sentence_prefix)[1] for sent in batch_sentences]
             for batch_idx, (without_prefix_sentence, b_label) in enumerate(zip(without_prefix, batch_labels)):
@@ -73,8 +81,10 @@ class T5FineTuner(pl.LightningModule):
                 option = [after_option2[0].strip(), after_option2[1].strip()]
                 if option[0].strip() == b_label.strip():
                     batch_placeholder.append([option, batch_idx, 2]) # need to change second one
-                if option[1].strip() == b_label.strip():
+                elif option[1].strip() == b_label.strip():
                     batch_placeholder.append([option, batch_idx, 1]) # need to change first one
+                else:
+                    deleted_idx.append(batch_idx) # trimmed
 
         # if self.option == 3:
         #     sentence_prefix = "Does this sentence make sense?: "
@@ -99,6 +109,7 @@ class T5FineTuner(pl.LightningModule):
                 #TODO : difficult to get original sentence in this setting
                 fake_source.append(generator_prefix + fake_batch[0] + " </s>")
                 fake_target.append(generator_prefix + fake_batch[0] + " </s>")
+
 
         # using source and target to train the generator
         generator_input = self.tokenizer.batch_encode_plus(
@@ -141,23 +152,26 @@ class T5FineTuner(pl.LightningModule):
                 discriminator_input = sentence_prefix + 'options: 1: ' + choice_list[0][0] + ' 2: ' + fake_sentence + ' </s>'
             discriminator_input_sentences.append(discriminator_input)
 
-        print(discriminator_input_sentences)
-
         discriminator_input_regenerated = self.tokenizer.batch_encode_plus(
             discriminator_input_sentences, max_length=self.hparams.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
         )
 
+        delete_mask = [1] * len(batch_sentences)
+        for idx in deleted_idx:
+            delete_mask[idx] = 0
+        delete_mask_tensor = torch.ByteTensor(delete_mask)
+
+        discriminator_labels = discriminator_labels[delete_mask_tensor]
+        discriminator_decoder_attention_mask = discriminator_decoder_attention_mask[delete_mask_tensor]
         discriminator_output = self.model(discriminator_input_regenerated["input_ids"].to(device),
-                                                  attention_mask=discriminator_input_regenerated["attention_mask"].to(device),
-                                                  decoder_input_ids=discriminator_decoder_input_ids,
-                                                  decoder_attention_mask=discriminator_decoder_attention_mask,
-                                                  lm_labels=discriminator_labels)
+                                          attention_mask=discriminator_input_regenerated["attention_mask"].to(device),
+                                          decoder_input_ids=discriminator_decoder_input_ids,
+                                          decoder_attention_mask=discriminator_decoder_attention_mask,
+                                          lm_labels=discriminator_labels)
 
         discriminator_loss = discriminator_output[0]
 
-        #TODO : combination weighting factor (ELECTRA weight factor)
-        #TODO : initialize two optimizer for generator loss and discriminator loss.
-        return generator_loss + discriminator_loss
+        return self.generator_weight * generator_loss + self.discriminator_weight * discriminator_loss
 
     def _step(self, batch):
         lm_labels = batch["target_ids"]
