@@ -5,6 +5,8 @@ import numpy as np
 import torch
 import argparse
 import os
+import re
+import glob
 import pytorch_lightning as pl
 from trainer import *
 
@@ -14,6 +16,35 @@ def set_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+def extractValLoss(checkpoint_path):
+    """Eg checkpoint path format: path_to_dir/checkpoint_epoch=4-val_loss=0.450662.ckpt"""
+
+    val_loss = float(re.search('val_loss=(.+?).ckpt', checkpoint_path).group(1))
+    return val_loss
+
+def extractStepOREpochNum(checkpoint_path):
+    """Eg checkpoint path format: path_to_dir/checkpoint_epoch=4.ckpt (or)
+        path_to_dir/checkpoint_epoch=4-step=50.ckpt (or)
+    """
+
+    if "step" in checkpoint_path:
+        num = int(re.search('step=(.+?).ckpt', checkpoint_path).group(1))
+    else:
+        num = int(re.search('epoch=(.+?).ckpt', checkpoint_path).group(1))
+    return num
+
+def getBestModelCheckpointPath(checkpoint_dir):
+    checkpoint_list = glob.glob(os.path.join(checkpoint_dir, "checkpoint_*.ckpt"))
+
+    try:
+        # Get the checkpoint with lowest validation loss
+        sorted_list = sorted(checkpoint_list, key=lambda x: extractValLoss(x.split("/")[-1]))
+    except:
+        # If validation loss is not present, get the checkpoint with highest step number or epoch number.
+        sorted_list = sorted(checkpoint_list, key=lambda x: extractStepOREpochNum(x.split("/")[-1]), reverse=True)
+
+    return sorted_list[0]
 
 def run():
     #torch.multiprocessing.freeze_support()
@@ -27,8 +58,8 @@ def run():
                         help='Path to save the checkpoints')
     parser.add_argument('--checkpoint_dir', type=str, default="t5_concept",
                         help='Checkpoint directory')
-    parser.add_argument('--save_every_n_steps', type=int, default=10,
-                        help='Interval of training steps to save the model checkpoints')
+    parser.add_argument('--save_every_n_steps', type=int, default=-1,
+                        help='Interval of training steps to save the model checkpoints. Use -1 to disable this callback')
 
     parser.add_argument('--model_name_or_path', type=str, default="t5-base",
                         help='Model name or Path')
@@ -77,7 +108,7 @@ def run():
     parser.add_argument('--seed', type=int, default=42,
                         help='Manual Seed Value')
 
-    args = parser.parse_args()
+    args = parser.parse_known_args()[0]
     print(args)
 
     # Create a folder if output_dir doesn't exists:
@@ -86,12 +117,15 @@ def run():
         print("Creating output directory")
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        filepath=args.output_dir, prefix="checkpoint", monitor="val_loss", mode="min", save_top_k=5
+        filepath=args.output_dir + "/{epoch}-{val_loss:.6f}", prefix="checkpoint_", monitor="val_loss", mode="min", save_top_k=1
     )
 
-    custom_checkpoint_callback = CustomCheckpointCallback(
-        filepath=args.output_dir, prefix="checkpoint_", save_every_n_steps=args.save_every_n_steps
-    )
+    trainer_custom_callbacks = [LoggingCallback()]
+    if args.save_every_n_steps != -1:
+        custom_checkpoint_callback = CustomCheckpointCallback(
+            filepath=args.output_dir, prefix="checkpoint_", save_every_n_steps=args.save_every_n_steps
+        )
+        trainer_custom_callbacks.append(custom_checkpoint_callback)
 
     train_params = dict(
         accumulate_grad_batches=args.gradient_accumulation_steps,
@@ -102,15 +136,14 @@ def run():
         amp_level=args.opt_level,
         gradient_clip_val=args.max_grad_norm,
         checkpoint_callback=checkpoint_callback,
-        callbacks=[LoggingCallback()],
+        callbacks=trainer_custom_callbacks,
         distributed_backend='ddp'
     )
 
     if len(args.checkpoint_dir) != 0:
-        checkpoints = list(
-            sorted(glob.glob(os.path.join(args.checkpoint_dir, "checkpoint_epoch=*.ckpt"), recursive=True)))
-        print("Using checkpoint = ", str(checkpoints[-1]))
-        checkpoint_state = torch.load(checkpoints[-1])
+        best_checkpoint_path = getBestModelCheckpointPath(args.checkpoint_dir)
+        print("Using checkpoint = ", str(best_checkpoint_path))
+        checkpoint_state = torch.load(best_checkpoint_path)
         model = T5FineTuner(args)
         model.load_state_dict(checkpoint_state['state_dict'])
     else:
