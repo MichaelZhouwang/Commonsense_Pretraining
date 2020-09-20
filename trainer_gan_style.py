@@ -80,6 +80,9 @@ class T5FineTuner(pl.LightningModule):
                     deleted_idx.append(batch_idx)
                     continue
                 after_option1 = without_prefix_sentence.split('options: 1: ')[1]
+                if len(after_option1.split('2: ')) != 2:
+                    deleted_idx.append(batch_idx)
+                    continue
                 after_option2 = after_option1.split('2: ')
                 option = [after_option2[0].strip(), after_option2[1].strip()]
                 if option[0].strip() == b_label.strip():
