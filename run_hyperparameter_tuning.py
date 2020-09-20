@@ -72,6 +72,8 @@ if __name__ == "__main__":
                         help='GPU ids separated by "," to use for computation')
     parser.add_argument('--root_output_dir', type=str, default="temp",
                         help='Root output directory')
+    parser.add_argument('--finetune_checkpoint_dir', type=str, default="",
+                        help='Checkpoint directory to start the fine tuning')
     args = parser.parse_known_args()[0]
 
     if args.param_file.endswith(".json"):
@@ -97,7 +99,8 @@ if __name__ == "__main__":
 
         finetune_log_file = os.path.join(finetune_out_dir, 'logs.txt')
         finetune_cmd = "python3 " + args.finetune_file + " " + convertDictToCmdArgs(cur_param_seq) + "--n_gpu " + str(args.n_gpu)\
-                       + " --gpu_nums " + str(args.gpu_nums) + " --output_dir " + finetune_out_dir + " > " + finetune_log_file
+                       + " --gpu_nums " + str(args.gpu_nums) + " --output_dir " + finetune_out_dir + " --checkpoint_dir " +\
+                       args.finetune_checkpoint_dir + " > " + finetune_log_file
         print(finetune_cmd, "\n")
         os.system(finetune_cmd)
 
