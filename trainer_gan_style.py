@@ -2,7 +2,9 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 from dataset import SummarizationDataset
+from trainer import T5FineTuner
 import argparse
+import glob, os, re
 from transformers import (
     AdamW,
     T5ForConditionalGeneration,
@@ -20,16 +22,52 @@ def get_dataset(tokenizer, type_path, args):
     if data_dir_leaf == 'option3': # True / False
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=2)
 
-class T5FineTuner(pl.LightningModule):
+def extractValLoss(checkpoint_path):
+    """Eg checkpoint path format: path_to_dir/checkpoint_epoch=4-val_loss=0.450662.ckpt"""
+
+    val_loss = float(re.search('val_loss=(.+?).ckpt', checkpoint_path).group(1))
+    return val_loss
+
+def extractStepOREpochNum(checkpoint_path):
+    """Eg checkpoint path format: path_to_dir/checkpoint_epoch=4.ckpt (or)
+        path_to_dir/checkpoint_epoch=4-step=50.ckpt (or)
+    """
+
+    if "step" in checkpoint_path:
+        num = int(re.search('step=(.+?).ckpt', checkpoint_path).group(1))
+    else:
+        num = int(re.search('epoch=(.+?).ckpt', checkpoint_path).group(1))
+    return num
+
+def getBestModelCheckpointPath(checkpoint_dir):
+    checkpoint_list = glob.glob(os.path.join(checkpoint_dir, "checkpoint_*.ckpt"))
+
+    try:
+        # Get the checkpoint with lowest validation loss
+        sorted_list = sorted(checkpoint_list, key=lambda x: extractValLoss(x.split("/")[-1]))
+    except:
+        # If validation loss is not present, get the checkpoint with highest step number or epoch number.
+        sorted_list = sorted(checkpoint_list, key=lambda x: extractStepOREpochNum(x.split("/")[-1]), reverse=True)
+
+    return sorted_list[0]
+
+class T5GANFineTuner(pl.LightningModule):
     def __init__(self, hparams):
-        super(T5FineTuner, self).__init__()
+        super(T5GANFineTuner, self).__init__()
         if isinstance(hparams, dict):
             hparams = argparse.Namespace(**hparams)
         self.hparams = hparams
         print("Model params: ", self.hparams)
         self.data_dir_leaf = self.hparams.data_dir.split("/")[-1]
 
-        self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+        if hparams.checkpoint_dir != '':
+            best_checkpoint_path = getBestModelCheckpointPath(self.hparams.checkpoint_dir)
+            print("Using checkpoint = ", str(best_checkpoint_path))
+            checkpoint_model = T5FineTuner.load_from_checkpoint(best_checkpoint_path)
+            self.model = checkpoint_model.model
+        else:
+            self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+
         self.generator_max_length = 128
         self.generator_min_length = 1
 
