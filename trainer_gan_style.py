@@ -136,7 +136,6 @@ class T5FineTuner(pl.LightningModule):
 
         generator_loss = generator_outputs[0]
 
-        print(generator_input["input_ids"].shape, generator_input["attention_mask"].shape)
         # TODO : top-k, p sampling (need another decoding sampling)
         fake_sentences_input_ids = self.model.generate(
             input_ids=generator_input["input_ids"].to(device),
@@ -148,7 +147,6 @@ class T5FineTuner(pl.LightningModule):
             no_repeat_ngram_size=3,
             early_stopping=True,
         )
-        print(fake_sentences_input_ids.shape)
 
         fake_sentences = [self.tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=False) for g in fake_sentences_input_ids]
 
