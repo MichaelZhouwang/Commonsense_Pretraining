@@ -144,14 +144,7 @@ def run():
         distributed_backend='ddp'
     )
 
-    if len(args.checkpoint_dir) != 0:
-        best_checkpoint_path = getBestModelCheckpointPath(args.checkpoint_dir)
-        print("Using checkpoint = ", str(best_checkpoint_path))
-        checkpoint_state = torch.load(best_checkpoint_path)
-        model = T5FineTuner(args)
-        model.load_state_dict(checkpoint_state['state_dict'])
-    else:
-        model = T5FineTuner(args)
+    model = T5GANFineTuner(args)
 
     trainer = pl.Trainer(**train_params)
     trainer.fit(model)
