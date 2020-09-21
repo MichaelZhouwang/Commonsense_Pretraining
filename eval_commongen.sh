@@ -1,28 +1,28 @@
 # source ~/.bashrc
-INPUT_FILE=~/CommonGen-plus/dataset/final_data/commongen/commongen.dev.src_alpha.txt
-TRUTH_FILE=~/CommonGen-plus/dataset/final_data/commongen/commongen.dev.tgt.txt
+INPUT_FILE=~/Commonsense_Pretraining/commongen/test.source
+TRUTH_FILE=~/Commonsense_Pretraining/commongen/test.target
 PRED_FILE=$1
 
-echo ${INPUT_FILE} 
+echo ${INPUT_FILE}
 echo ${TRUTH_FILE}
 echo ${PRED_FILE}
 
-#echo "Start running ROUGE"
+echo "Start running ROUGE"
 
-#cd ~/CommonGen-plus/methods/unilm_based
-#~/anaconda3/envs/unilm_env/bin/python unilm/src/gigaword/eval.py --pred ${PRED_FILE}   --gold ${TRUTH_FILE} --perl
-
-
-#echo "BLEU/METER/CIDER/SPICE"
-#cd ~/CommonGen/evaluation/Traditional/eval_metrics/
-#~/anaconda3/envs/coco_score/bin/python eval.py --key_file ${INPUT_FILE} --gts_file ${TRUTH_FILE} --res_file ${PRED_FILE}
+cd ~/CommonGen/methods/unilm_based
+/home/danny911kr/miniconda3/envs/unilm_env/bin/python unilm/src/gigaword/eval.py --pred ${PRED_FILE}   --gold ${TRUTH_FILE} --perl
 
 
-#echo "Coverage"
-#cd ~/CommonGen-plus/evaluation/PivotScore
-#~/anaconda3/envs/pivot_score/bin/python evaluate.py --pred ${PRED_FILE}   --ref ${TRUTH_FILE} --cs ${INPUT_FILE} --cs_str ../../dataset/final_data/commongen/commongen.dev.cs_str.txt
+echo "BLEU/METER/CIDER/SPICE"
+cd ~/CommonGen/evaluation/Traditional/eval_metrics/
+/home/danny911kr/miniconda3/envs/coco_score/bin/python eval.py --key_file ${INPUT_FILE} --gts_file ${TRUTH_FILE} --res_file ${PRED_FILE}
 
-echo "MLM-Scores"
-cd ~/CommonGen-plus/evaluation/mlm-score
-~/anaconda3/envs/mlm_score/bin/python scoring-new.py --pred ${PRED_FILE}
 
+echo "PivotScore"
+cd ~/CommonGen/evaluation/PivotScore
+/home/danny911kr/miniconda3/envs/pivot_score/bin/python evaluate.py --pred ${PRED_FILE}   --ref ${TRUTH_FILE} --cs ${INPUT_FILE} --cs_str ~/CommonGen/dataset/final_data/commongen/commongen.test.cs_str.txt
+
+echo "_________________"
+echo "Correct BERTScore"
+cd ~/CommonGen/evaluation/BERTScore
+CUDA_VISIBLE_DEVICES=3 /home/danny911kr/miniconda3/envs/bert_score/bin/python evaluate.py --pred ${PRED_FILE}   --ref ${TRUTH_FILE} --cs ~/CommonGen/dataset/final_data/commongen/commongen.test.src_alpha.txt
