@@ -121,7 +121,7 @@ def run():
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         filepath=args.output_dir + "/{epoch}-{val_loss:.6f}", prefix="checkpoint_", monitor="val_loss", mode="min",
-        save_top_k=1
+        save_top_k=2
     )
 
     trainer_custom_callbacks = [LoggingCallback()]
