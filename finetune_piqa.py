@@ -116,7 +116,7 @@ def run():
         print("Creating output directory")
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        filepath=args.output_dir + "/{epoch}-{val_loss:.6f}", prefix="checkpoint_", monitor="val_loss", mode="min", save_top_k=5
+        filepath=args.output_dir + "/{epoch}-{val_loss:.6f}", prefix="checkpoint_", monitor="val_loss", mode="min", save_top_k=1
     )
 
     trainer_custom_callbacks = [LoggingCallback()]
@@ -142,7 +142,7 @@ def run():
     if len(args.checkpoint_dir) != 0:
         best_checkpoint_path = getBestModelCheckpointPath(args.checkpoint_dir)
         print("Using checkpoint = ", str(best_checkpoint_path))
-        checkpoint_state = torch.load(best_checkpoint_path)
+        checkpoint_state = torch.load(best_checkpoint_path, map_location="cpu")
         model = T5FineTuner(args)
         model.load_state_dict(checkpoint_state['state_dict'])
     else:
