@@ -1,0 +1,10 @@
+{
+  "max_source_length": [32],
+  "max_target_length": [32],
+  "train_batch_size": [8],
+  "eval_batch_size": [8],
+  "gradient_accumulation_steps": [16],
+  "num_train_epochs": [20],
+  "learning_rate": [2e-5],
+  "fp_16": ["False"]
+}
