@@ -5,6 +5,7 @@
   "use_KB": ["False"],
   "gradient_accumulation_steps": [8, 16],
   "num_train_epochs": [20],
+  "early_stop_callback": ["True"],
   "learning_rate": [5e-5, 1e-4, 2e-4, 3e-4],
   "fp_16": ["False"]
 }

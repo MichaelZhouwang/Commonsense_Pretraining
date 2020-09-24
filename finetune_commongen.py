@@ -56,7 +56,7 @@ def run():
                         help='Path for Data files')
     parser.add_argument('--output_dir', type=str, default="outputs/commongen_concept_output_epoch10",
                         help='Path to save the checkpoints')
-    parser.add_argument('--checkpoint_dir', type=str, default="t5_concept",
+    parser.add_argument('--checkpoint_dir', type=str, default="",
                         help='Checkpoint directory')
     parser.add_argument('--save_every_n_steps', type=int, default=-1,
                         help='Interval of training steps to save the model checkpoints. Use -1 to disable this callback')
