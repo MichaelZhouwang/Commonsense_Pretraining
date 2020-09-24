@@ -4,6 +4,7 @@
   "eval_batch_size": [8],
   "gradient_accumulation_steps": [8],
   "num_train_epochs": [20],
+  "early_stop_callback": ["True"],
   "learning_rate": [2e-6, 1e-5, 2e-4, 1e-3],
   "fp_16": ["False"]
 }
