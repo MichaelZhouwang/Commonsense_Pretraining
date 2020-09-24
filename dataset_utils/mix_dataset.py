@@ -48,9 +48,14 @@ def getMergedContent(fps1, fpt1, fps2, fpt2, fps3=None, fpt3=None):
         else:
             s3_flag = 1
 
-        if s1_flag == 1 and s2_flag == 1 and s3_flag == 1:
-            # Done reading all the files so break from the loop
-            break_flag = 1
+        if fps3 is not None:
+            if s1_flag == 1 or s2_flag == 1 or s3_flag == 1:
+                # If done reading any one of the files, break from the loop
+                break_flag = 1
+        else:
+            if s1_flag == 1 or s2_flag == 1:
+                # If done reading any one of the files, break from the loop
+                break_flag = 1
 
     return merged_content_source, merged_content_target
 
