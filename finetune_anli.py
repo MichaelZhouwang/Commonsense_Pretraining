@@ -48,7 +48,6 @@ def getBestModelCheckpointPath(checkpoint_dir):
 
 def run():
     #torch.multiprocessing.freeze_support()
-    set_seed(42)
 
     parser = argparse.ArgumentParser()
 
@@ -109,6 +108,8 @@ def run():
 
     args = parser.parse_known_args()[0]
     print(args)
+
+    set_seed(args.seed)
 
     # Create a folder if output_dir doesn't exists:
     if not os.path.exists(args.output_dir):
