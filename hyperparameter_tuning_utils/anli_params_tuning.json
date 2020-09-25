@@ -1,10 +1,11 @@
 {
+  "seed": [42, 2020, 9999],
   "max_seq_length": [256],
-  "train_batch_size": [4],
+  "train_batch_size": [8],
   "eval_batch_size": [8],
-  "gradient_accumulation_steps": [8, 16],
+  "gradient_accumulation_steps": [4],
   "num_train_epochs": [10],
   "early_stop_callback": ["True"],
-  "learning_rate": [1e-5, 2e-5],
+  "learning_rate": [2e-5],
   "fp_16": ["False"]
 }
