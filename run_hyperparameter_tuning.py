@@ -98,9 +98,14 @@ if __name__ == "__main__":
             os.makedirs(finetune_out_dir)
 
         finetune_log_file = os.path.join(finetune_out_dir, 'logs.txt')
-        finetune_cmd = "python3 " + args.finetune_file + " " + convertDictToCmdArgs(cur_param_seq) + "--n_gpu " + str(args.n_gpu)\
-                       + " --gpu_nums " + str(args.gpu_nums) + " --output_dir " + finetune_out_dir + " --checkpoint_dir " +\
-                       args.finetune_checkpoint_dir + " > " + finetune_log_file
+
+        if len(args.finetune_checkpoint_dir) != 0:
+            finetune_cmd = "python3 " + args.finetune_file + " " + convertDictToCmdArgs(cur_param_seq) + "--n_gpu " + str(args.n_gpu)\
+                           + " --gpu_nums " + str(args.gpu_nums) + " --output_dir " + finetune_out_dir + " --checkpoint_dir " +\
+                           args.finetune_checkpoint_dir + " > " + finetune_log_file
+        else:
+            finetune_cmd = "python3 " + args.finetune_file + " " + convertDictToCmdArgs(cur_param_seq) + "--n_gpu " + str(args.n_gpu)\
+                           + " --gpu_nums " + str(args.gpu_nums) + " --output_dir " + finetune_out_dir + " > " + finetune_log_file
         print(finetune_cmd, "\n")
         os.system(finetune_cmd)
 
