@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
         predict_log_file = os.path.join(predict_out_dir, 'logs.txt')
 
-        predict_cmd = "python3 " + args.predict_file + " " + convertDictToCmdArgs(cur_param_seq) + " --checkpoint_dir " +\
+        predict_cmd = "CUDA_VISIBLE_DEVICES=" + str(args.gpu_nums) + " python3 " + args.predict_file + " " + convertDictToCmdArgs(cur_param_seq) + " --checkpoint_dir " +\
                       finetune_out_dir + " --output_dir " + predict_out_dir + " > " + predict_log_file
         print(predict_cmd, "\n")
         os.system(predict_cmd)
