@@ -1,14 +1,9 @@
 from logger import LoggingCallback
-import random
-import numpy as np
 import torch
 import argparse
 import pytorch_lightning as pl
 from dataset import NSPDataset
 from trainer import *
-import re
-import os
-import glob
 from tqdm import tqdm
 from transformers import (
     AdamW,
@@ -16,6 +11,11 @@ from transformers import (
     T5Tokenizer,
     get_linear_schedule_with_warmup
 )
+import random
+import numpy as np
+import glob
+import os
+import re
 
 def set_seed(seed):
     random.seed(seed)
