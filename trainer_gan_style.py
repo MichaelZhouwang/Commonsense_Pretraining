@@ -72,7 +72,7 @@ class T5GANFineTuner(pl.LightningModule):
         self.generator_min_length = 1
 
         self.generator_weight = 1.0
-        self.discriminator_weight = 50.0
+        self.discriminator_weight = 1.0
 
         # TODO: sharing the weight between the generator and discriminator. -> then it's one model.
         self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
