@@ -85,10 +85,10 @@ def run():
 
     t5model = T5FineTuner.load_from_checkpoint(best_checkpoint_path)
     tokenizer = T5Tokenizer.from_pretrained(args.tokenizer_name_or_path)
-    test_csvfile = open(os.path.join(args.output_dir, 'dev.csv'),'w')
-    test_writer = csv.writer(test_csvfile)
+    dev_csvfile = open(os.path.join(args.output_dir, 'dev.csv'),'w')
+    dev_writier = csv.writer(dev_csvfile)
     proc = PIQAProcessor()
-    test_examples = proc.get_dev_examples(args.data_dir)
+    dev_examples = proc.get_dev_examples(args.data_dir)
 
     def chunks(lst, n):
         for i in range(0, len(lst), n):
@@ -98,6 +98,30 @@ def run():
     print(device)
     t5model.to(device)
 
+    for batch in tqdm(list(chunks(dev_examples, args.eval_batch_size))):
+        batch_question = [b.question for b in batch]
+        options = [['%s: %s' % (i, option) for i, option in zip('12', b.answers)] for b in batch]
+        options = [" ".join(opts) for opts in options]
+
+        inputs = []
+        for question, option in zip(batch_question, options):
+            inputs.append("context: %s  options: %s </s>" % (question, option))
+
+        dct = tokenizer.batch_encode_plus(inputs, max_length=args.max_seq_length, return_tensors="pt", pad_to_max_length=True, truncation=True)
+        outs = t5model.model.generate(input_ids=dct['input_ids'].cuda(),
+                                    attention_mask=dct['attention_mask'].cuda(),
+                                    max_length=2)
+
+        LABELS = ['0','1']
+        dec = [LABELS[int(tokenizer.decode(ids))-1] for ids in outs]
+
+        for d in dec:
+            dev_writier.writerow([d])
+
+
+    test_csvfile = open(os.path.join(args.output_dir, 'test.csv'),'w')
+    test_writier = csv.writer(test_csvfile)
+    test_examples = proc.get_test_examples(args.data_dir)
     for batch in tqdm(list(chunks(test_examples, args.eval_batch_size))):
         batch_question = [b.question for b in batch]
         options = [['%s: %s' % (i, option) for i, option in zip('12', b.answers)] for b in batch]
@@ -116,7 +140,7 @@ def run():
         dec = [LABELS[int(tokenizer.decode(ids))-1] for ids in outs]
 
         for d in dec:
-            test_writer.writerow([d])
+            test_writier.writerow([d])
 
 if __name__ == '__main__':
     run()
