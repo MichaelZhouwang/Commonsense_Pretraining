@@ -59,6 +59,8 @@ def run():
                         help='Checkpoint directory')
     parser.add_argument('--phase2_checkpoint_dir', type=str, default="",
                         help='Phase 2 - Checkpoint directory')
+    parser.add_argument('--resume_training_from_phase2_checkpoint', type=lambda x: (str(x).lower() == 'true'), default="False",
+                        help='Whether to resume training from the phase2 checkpoint?')
     parser.add_argument('--save_every_n_steps', type=int, default=-1,
                         help='Interval of training steps to save the model checkpoints. Use -1 to disable this callback')
 
@@ -147,17 +149,25 @@ def run():
         distributed_backend='ddp'
     )
 
-    if len(args.phase2_checkpoint_dir) != 0:
+    if args.resume_training_from_phase2_checkpoint:
         best_checkpoint_path = getBestModelCheckpointPath(args.phase2_checkpoint_dir)
         print("Using checkpoint = ", str(best_checkpoint_path))
-        checkpoint_state = torch.load(best_checkpoint_path, map_location="cpu")
         model = T5GANFineTuner(args)
-        model.load_state_dict(checkpoint_state['state_dict'])
-    else:
-        model = T5GANFineTuner(args)
+        trainer = pl.Trainer(resume_from_checkpoint=best_checkpoint_path, max_epochs=args.num_train_epochs)
+        trainer.fit(model)
 
-    trainer = pl.Trainer(**train_params)
-    trainer.fit(model)
+    else:
+        if len(args.phase2_checkpoint_dir) != 0:
+            best_checkpoint_path = getBestModelCheckpointPath(args.phase2_checkpoint_dir)
+            print("Using checkpoint = ", str(best_checkpoint_path))
+            checkpoint_state = torch.load(best_checkpoint_path, map_location="cpu")
+            model = T5GANFineTuner(args)
+            model.load_state_dict(checkpoint_state['state_dict'])
+        else:
+            model = T5GANFineTuner(args)
+
+        trainer = pl.Trainer(**train_params)
+        trainer.fit(model)
 
 
 if __name__ == '__main__':
