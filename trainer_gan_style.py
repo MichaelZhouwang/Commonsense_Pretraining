@@ -113,7 +113,7 @@ class T5GANFineTuner(pl.LightningModule):
                 else:
                     deleted_idx.append(batch_idx)
 
-        if self.data_dir_leaf == 'option2':
+        if self.data_dir_leaf == 'option2' or self.data_dir_leaf == 'option2-new':
             sentence_prefix = "Which sentence is correct?: "
             without_prefix = [sent.split(sentence_prefix)[1] for sent in batch_sentences]
             for batch_idx, (without_prefix_sentence, b_label) in enumerate(zip(without_prefix, batch_labels)):
