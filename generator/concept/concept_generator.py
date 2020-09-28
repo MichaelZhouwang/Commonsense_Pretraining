@@ -35,7 +35,7 @@ class ConceptGenerator:
         result = tf.py_function(check_availability_sentence, [sentence['text']], [tf.bool])[0]
         return result
 
-    def generate(self, prompt):
+    def cor_generate(self, prompt):
         doc = self.nlp(str(prompt))
         V_concepts = []
         N_concepts = []
@@ -75,3 +75,28 @@ class ConceptGenerator:
 
         result = ''.join([token for token in shuffled_tokens])
         return result
+
+    def c2s_generate(self, prompt):
+        doc = self.nlp(str(prompt))
+
+        matched_concepts = []
+        for token in doc:
+            if (token.pos_.startswith('V') or token.pos_.startswith('PROP')) and token.is_alpha and not token.is_stop:
+                matched_concepts.append(token.lemma_)
+        for noun_chunk in doc.noun_chunks:
+            root_noun = noun_chunk[-1]
+            if root_noun.pos_ == "NOUN":
+                matched_concepts.append(root_noun.lemma_)
+
+        result = " ".join([token for token in matched_concepts])
+        return result
+
+    def generate(self, prompt):
+
+        negative_sampling = random.uniform(0,1) < 0.5
+        if negative_sampling:
+            return self.cor_generate(prompt)
+        else:
+            return self.c2s_generate(prompt)
+
+
