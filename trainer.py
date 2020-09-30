@@ -32,7 +32,7 @@ def get_dataset(tokenizer, type_path, args):
     if data_dir_leaf == 'mixed_dataset_key_lm_concept_option2':
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=int(args.max_seq_length / 2))
 
-    elif data_dir_leaf == 'csqa':
+    elif data_dir_leaf == 'csqa' or data_dir_leaf == 'csqa_20' or data_dir_leaf == 'csqa_40' or data_dir_leaf == 'csqa_60' or data_dir_leaf == 'csqa_80':
         return CSQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     elif data_dir_leaf == 'piqa':
         return PIQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
