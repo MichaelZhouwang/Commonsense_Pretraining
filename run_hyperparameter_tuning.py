@@ -52,6 +52,7 @@ def createFolderNameFromParamDict(input_dict):
     out_string = ""
     for key, val in input_dict.items():
         key_split = "".join([x[0] for x in key.lower().split("_")])
+        val = val.replace("/", "_")
         out_string += key_split + "_" + str(val).lower() + "_"
 
     return out_string[:-1]
