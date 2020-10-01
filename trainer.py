@@ -16,7 +16,7 @@ def get_dataset(tokenizer, type_path, args):
     data_dir_leaf = args.data_dir.split("/")[-1]
     # chunshu : 128 / 128
     # dong-ho : 256 / 128
-    if data_dir_leaf == 'commongen' or data_dir_leaf == 't5_processed':
+    if data_dir_leaf == 'commongen' or data_dir_leaf == 'commongen_20' or data_dir_leaf == 'commongen_40' or data_dir_leaf == 'commongen_60' or data_dir_leaf == 'commongen_80' or data_dir_leaf == 't5_processed':
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_source_length, max_target_length=args.max_target_length)
 
     if data_dir_leaf == "keyword_lm" or data_dir_leaf == "concept_deshuffling":
