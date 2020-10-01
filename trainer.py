@@ -38,7 +38,7 @@ def get_dataset(tokenizer, type_path, args):
         return PIQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     elif data_dir_leaf == "anli":
         return ANLIDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
-    elif data_dir_leaf == "openbookqa":
+    elif data_dir_leaf == "openbookqa" or data_dir_leaf == "openbookqa_20" or data_dir_leaf == "openbookqa_40" or data_dir_leaf == "openbookqa_60" or data_dir_leaf == "openbookqa_80":
         return OBQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length, use_KB=args.use_KB)
 
 
