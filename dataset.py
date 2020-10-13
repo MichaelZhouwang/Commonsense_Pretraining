@@ -808,3 +808,114 @@ class OBQADataset(Dataset):
 
         self.inputs.append(tokenized_inputs)
         self.targets.append(tokenized_targets)
+
+
+# KILT Tasks:
+class KILTFEVERProcessor(DataProcessor):
+    """Processor for the KILT FEVER data set."""
+
+    LABELS = ['SUPPORTS', 'REFUTES']
+
+    TRAIN_FILE_NAME = 'fever-train-kilt.jsonl'
+    DEV_FILE_NAME = 'fever-dev-kilt.jsonl'
+    TEST_FILE_NAME = 'fever-test_without_answers-kilt.jsonl'
+
+    def get_train_examples(self, data_dir):
+        train_file_name = self.TRAIN_FILE_NAME
+        return self._create_examples(self._read_jsonl(os.path.join(data_dir, train_file_name)), 'train')
+
+    def get_dev_examples(self, data_dir):
+        dev_file_name = self.DEV_FILE_NAME
+        return self._create_examples(self._read_jsonl(os.path.join(data_dir, dev_file_name)), 'dev')
+
+    def get_test_examples(self, data_dir):
+        test_file_name = self.TEST_FILE_NAME
+        return self._create_examples(self._read_jsonl(os.path.join(data_dir, test_file_name)), 'test')
+
+    def get_labels(self):
+        return [0, 1]
+
+    def _create_examples(self, lines, set_type):
+        examples = []
+        if set_type != "test":
+            for line in lines:
+                context = ""
+                qid = line["id"]
+                question = line["input"]
+                choices = self.LABELS
+                choices = [c + "." if not c.endswith(".") else c for c in choices]
+                label = self.LABELS.index(line["output"][0]["answer"])
+                examples.append(InputExample(
+                    qid=qid,
+                    question=question,
+                    answers=choices,
+                    label=label))
+        else:
+            for line in lines:
+                context = ""
+                qid = line["id"]
+                question = line["input"]
+                choices = self.LABELS
+                choices = [c + "." if not c.endswith(".") else c for c in choices]
+                examples.append(InputExample(
+                    qid=qid,
+                    question=question,
+                    answers=choices,
+                    label=None))
+        return examples
+
+
+class KILTFEVERDataset(Dataset):
+    def __init__(self, tokenizer, data_dir, type_path, max_len=512):
+        self.data_dir = data_dir
+        self.type_path = type_path
+        self.max_len = max_len
+        self.tokenizer = tokenizer
+        self.inputs = []
+        self.targets = []
+
+        self.proc = KILTFEVERProcessor()
+
+        self._build()
+
+    def __getitem__(self, index):
+        source_ids = self.inputs[index]["input_ids"].squeeze()
+        target_ids = self.targets[index]["input_ids"].squeeze()
+        src_mask = self.inputs[index]["attention_mask"].squeeze()  # might need to squeeze
+        target_mask = self.targets[index]["attention_mask"].squeeze()  # might need to squeeze
+
+        return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
+
+    def __len__(self):
+        return len(self.inputs)
+
+    def _build(self):
+        if self.type_path == "train":
+            examples = self.proc.get_train_examples(self.data_dir)
+        elif self.type_path == "dev":
+            examples = self.proc.get_dev_examples(self.data_dir)
+        else:
+            examples = self.proc.get_test_examples(self.data_dir)
+
+        for example in examples:
+            self._create_features(example)
+
+    def _create_features(self, example):
+        input_ = example.question
+        options = ['%s: %s' % (i, option) for i, option in zip('12', example.answers)]
+        options = " ".join(options)
+        input_ = "context: %s  options: %s </s>" % (input_, options)
+        target = "%s </s>" % str(int(example.label) + 1)
+
+        # tokenize inputs
+        tokenized_inputs = self.tokenizer.batch_encode_plus(
+            [input_], max_length=self.max_len, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        # tokenize targets
+        tokenized_targets = self.tokenizer.batch_encode_plus(
+            [target], max_length=2, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        self.inputs.append(tokenized_inputs)
+        self.targets.append(tokenized_targets)

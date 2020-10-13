@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset import SummarizationDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset
+from dataset import SummarizationDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset, KILTFEVERDataset
 import argparse
 from transformers import (
     AdamW,
@@ -18,18 +18,17 @@ def get_dataset(tokenizer, type_path, args):
     # dong-ho : 256 / 128
     if data_dir_leaf == 'commongen' or data_dir_leaf == 'commongen_20' or data_dir_leaf == 'commongen_40' or data_dir_leaf == 'commongen_60' or data_dir_leaf == 'commongen_80' or data_dir_leaf == 't5_processed':
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_source_length, max_target_length=args.max_target_length)
-
-    if data_dir_leaf == "keyword_lm" or data_dir_leaf == "concept_deshuffling":
+    elif data_dir_leaf == "keyword_lm" or data_dir_leaf == "concept_deshuffling":
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path,max_source_length=args.max_seq_length, max_target_length=args.max_seq_length)
-    if data_dir_leaf == 'option1': # choice of string
+    elif data_dir_leaf == 'option1': # choice of string
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=2)
-    if data_dir_leaf == 'option2': # string of choice
+    elif data_dir_leaf == 'option2': # string of choice
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=int(args.max_seq_length / 2))
-    if data_dir_leaf == 'option3': # True / False
+    elif data_dir_leaf == 'option3': # True / False
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=2)
-    if data_dir_leaf == 'mixed_dataset_key_lm_concept':
+    elif data_dir_leaf == 'mixed_dataset_key_lm_concept':
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=args.max_seq_length)
-    if data_dir_leaf == 'mixed_dataset_key_lm_concept_option2':
+    elif data_dir_leaf == 'mixed_dataset_key_lm_concept_option2':
         return SummarizationDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_seq_length, max_target_length=int(args.max_seq_length / 2))
 
     elif data_dir_leaf == 'csqa' or data_dir_leaf == 'csqa_20' or data_dir_leaf == 'csqa_40' or data_dir_leaf == 'csqa_60' or data_dir_leaf == 'csqa_80':
@@ -40,6 +39,11 @@ def get_dataset(tokenizer, type_path, args):
         return ANLIDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     elif data_dir_leaf == "openbookqa" or data_dir_leaf == "openbookqa_20" or data_dir_leaf == "openbookqa_40" or data_dir_leaf == "openbookqa_60" or data_dir_leaf == "openbookqa_80":
         return OBQADataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length, use_KB=args.use_KB)
+
+    # KILT Tasks
+    elif data_dir_leaf == "kilt_fever":
+        return KILTFEVERDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
+
 
 
 class T5FineTuner(pl.LightningModule):
