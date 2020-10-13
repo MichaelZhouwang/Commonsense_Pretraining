@@ -892,7 +892,7 @@ class KILTFEVERDataset(Dataset):
     def _build(self):
         if self.type_path == "train":
             examples = self.proc.get_train_examples(self.data_dir)
-        elif self.type_path == "dev":
+        elif self.type_path == "valid":
             examples = self.proc.get_dev_examples(self.data_dir)
         else:
             examples = self.proc.get_test_examples(self.data_dir)
