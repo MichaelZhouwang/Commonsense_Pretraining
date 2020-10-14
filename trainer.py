@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
-from dataset import SummarizationDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset, KILTFEVERDataset
+from dataset import SummarizationDataset, CSQADataset, PIQADataset, ANLIDataset, OBQADataset, KILTFEVERDataset, KILTT2TDataset
 import argparse
 from transformers import (
     AdamW,
@@ -43,7 +43,8 @@ def get_dataset(tokenizer, type_path, args):
     # KILT Tasks
     elif data_dir_leaf == "kilt_fever":
         return KILTFEVERDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
-
+    elif data_dir_leaf == "kilt_natural_qa" or data_dir_leaf == "kilt_ay2":
+        return KILTT2TDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_source_length, max_target_length=args.max_target_length)
 
 
 class T5FineTuner(pl.LightningModule):

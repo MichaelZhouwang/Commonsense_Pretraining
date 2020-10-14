@@ -919,3 +919,111 @@ class KILTFEVERDataset(Dataset):
 
         self.inputs.append(tokenized_inputs)
         self.targets.append(tokenized_targets)
+
+
+class KILTT2TProcessor(DataProcessor):
+    """Processor for the KILT Text to Text data set."""
+
+    def __init__(self, task_type):
+        if task_type == "kilt_ay2":
+            self.TRAIN_FILE_NAME = 'aidayago2-train-kilt.jsonl'
+            self.DEV_FILE_NAME = 'aidayago2-dev-kilt.jsonl'
+            self.TEST_FILE_NAME = 'aidayago2-test_without_answers-kilt.jsonl'
+        elif task_type == "kilt_natural_qa":
+            self.TRAIN_FILE_NAME = 'nq-train-kilt.jsonl'
+            self.DEV_FILE_NAME = 'nq-dev-kilt.jsonl'
+            self.TEST_FILE_NAME = 'nq-test_without_answers-kilt.jsonl'
+        else:
+            raise Exception("Invalid kilt task type: " + task_type)
+
+    def get_train_examples(self, data_dir):
+        train_file_name = self.TRAIN_FILE_NAME
+        return self._create_examples(self._read_jsonl(os.path.join(data_dir, train_file_name)), 'train')
+
+    def get_dev_examples(self, data_dir):
+        dev_file_name = self.DEV_FILE_NAME
+        return self._create_examples(self._read_jsonl(os.path.join(data_dir, dev_file_name)), 'dev')
+
+    def get_test_examples(self, data_dir):
+        test_file_name = self.TEST_FILE_NAME
+        return self._create_examples(self._read_jsonl(os.path.join(data_dir, test_file_name)), 'test')
+
+    def _create_examples(self, lines, set_type):
+        examples = []
+        if set_type != "test":
+            for line in lines:
+                qid = line["id"]
+                input = line["input"]
+                output = line["output"][0]["answer"]
+                cur_dict = {
+                    "id": qid,
+                    "input": input,
+                    "output": output
+                }
+                examples.append(cur_dict)
+        else:
+            for line in lines:
+                qid = line["id"]
+                input = line["input"]
+                output = None
+                cur_dict = {
+                    "id": qid,
+                    "input": input,
+                    "output": output
+                }
+                examples.append(cur_dict)
+        return examples
+
+class KILTT2TDataset(Dataset):
+    def __init__(self, tokenizer, data_dir, type_path, max_source_length=256, max_target_length=32):
+        self.data_dir = data_dir
+        self.type_path = type_path
+        self.max_source_length = max_source_length
+        self.max_target_length = max_target_length
+
+        self.tokenizer = tokenizer
+        self.inputs = []
+        self.targets = []
+        self.task_type = data_dir.split("/")[-1]
+        self.proc = KILTT2TProcessor(self.task_type)
+        self._build()
+
+    def __len__(self):
+        return len(self.inputs)
+
+    def __getitem__(self, index):
+        source_ids = self.inputs[index]["input_ids"].squeeze()
+        target_ids = self.targets[index]["input_ids"].squeeze()
+        src_mask = self.inputs[index]["attention_mask"].squeeze()  # might need to squeeze
+        target_mask = self.targets[index]["attention_mask"].squeeze()  # might need to squeeze
+
+        return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
+
+    def _build(self):
+        if self.type_path == "train":
+            examples = self.proc.get_train_examples(self.data_dir)
+        elif self.type_path == "valid":
+            examples = self.proc.get_dev_examples(self.data_dir)
+        else:
+            examples = self.proc.get_test_examples(self.data_dir)
+
+        for example in examples:
+            self._create_features(example)
+
+    def _create_features(self, example):
+        input = example["input"]
+        target = example["output"]
+
+        # tokenize inputs
+        tokenized_inputs = self.tokenizer.batch_encode_plus(
+            [input], max_length=self.max_source_length, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        # tokenize targets
+        tokenized_targets = self.tokenizer.batch_encode_plus(
+            [target], max_length=self.max_target_length, pad_to_max_length=True, return_tensors="pt", truncation=True
+        )
+
+        self.inputs.append(tokenized_inputs)
+        self.targets.append(tokenized_targets)
+

@@ -20,8 +20,14 @@ def extractEpochNum(checkpoint_path):
 def decodeFolderName(folder_name, param_decode_map):
     folder_split_list = folder_name.split("_")
     param_dict = {}
-    for i in range(0, len(folder_split_list), 2):
-        param_dict[param_decode_map[folder_split_list[i]]] = folder_split_list[i + 1]
+    i = 0
+    while i < len(folder_split_list):
+        if folder_split_list[i] == "dd":
+            param_dict[param_decode_map[folder_split_list[i]]] = folder_split_list[i + 1] + "/" + folder_split_list[i + 2] + "_" + folder_split_list[i + 3]
+            i += 2
+        else:
+            param_dict[param_decode_map[folder_split_list[i]]] = folder_split_list[i + 1]
+        i += 2
     return param_dict
 
 if __name__ == "__main__":

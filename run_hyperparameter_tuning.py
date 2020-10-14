@@ -126,7 +126,11 @@ if __name__ == "__main__":
 
         # Evaluation:
         eval_out_dir = os.path.join(cur_output_folder, 'evaluation')
-        eval_cmd = "python3 " + args.eval_file + " " + "--predicted_labels_dir " + predict_out_dir + " --output_dir " +\
+        if cur_param_seq.get("data_dir") is None:
+            eval_cmd = "python3 " + args.eval_file + " " + "--predicted_labels_dir " + predict_out_dir + " --output_dir " + \
+                       eval_out_dir
+        else:
+            eval_cmd = "python3 " + args.eval_file + " " + "--ground_truth_labels_dir " + str(cur_param_seq.get("data_dir")) + " " + "--predicted_labels_dir " + predict_out_dir + " --output_dir " +\
                    eval_out_dir
         print(eval_cmd, "\n")
         os.system(eval_cmd)

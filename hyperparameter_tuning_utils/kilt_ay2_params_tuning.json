@@ -1,0 +1,12 @@
+{
+  "seed": [42],
+  "data_dir": ["datasets/kilt_ay2"],
+  "max_source_length": [512],
+  "max_target_length": [16],
+  "train_batch_size": [4],
+  "eval_batch_size": [4],
+  "gradient_accumulation_steps": [8],
+  "num_train_epochs": [20],
+  "learning_rate": [3e-4, 1e-4, 1e-3, 5e-5],
+  "fp_16": ["False"]
+}
