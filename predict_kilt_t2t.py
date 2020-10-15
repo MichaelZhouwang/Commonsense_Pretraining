@@ -91,9 +91,9 @@ def run():
     task_type = args.data_dir.split("/")[-1]
     kilt_proc = KILTT2TProcessor(task_type)
     test_examples = kilt_proc.get_test_examples(args.data_dir)
-    test_fout = open(os.path.join(args.output_dir, 'test.txt'),'w')
+    test_fout = open(os.path.join(args.output_dir, 'test.csv'),'w')
     val_examples = kilt_proc.get_dev_examples(args.data_dir)
-    val_fout = open(os.path.join(args.output_dir, 'val.txt'),'w')
+    val_fout = open(os.path.join(args.output_dir, 'dev.csv'),'w')
 
     max_length = args.max_target_length
     min_length = 1
@@ -125,7 +125,8 @@ def run():
             test_fout.flush()
 
     for batch in tqdm(list(chunks(val_examples, args.eval_batch_size))):
-        dct = tokenizer.batch_encode_plus(batch, max_length=args.max_source_length, return_tensors="pt", pad_to_max_length=True, truncation=True)
+        batch_inputs = [b["input"] for b in batch]
+        dct = tokenizer.batch_encode_plus(batch_inputs, max_length=args.max_source_length, return_tensors="pt", pad_to_max_length=True, truncation=True)
         summaries = t5model.model.generate(
             input_ids=dct["input_ids"].to(device),
             attention_mask=dct["attention_mask"].to(device),

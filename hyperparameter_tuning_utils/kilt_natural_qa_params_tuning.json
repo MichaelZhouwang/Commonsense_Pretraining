@@ -1,5 +1,6 @@
 {
   "seed": [42],
+  "data_dir": ["datasets/kilt_natural_qa"],
   "max_source_length": [64],
   "max_target_length": [16],
   "train_batch_size": [16],

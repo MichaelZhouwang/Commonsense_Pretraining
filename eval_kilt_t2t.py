@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     task_type = args.ground_truth_labels_dir.split("/")[-1]
     kilt_proc = KILTT2TProcessor(task_type)
-    val_samples = kilt_proc.get_dev_examples()
+    val_samples = kilt_proc.get_dev_examples(args.ground_truth_labels_dir)
 
     predicted_labels_file = os.path.join(args.predicted_labels_dir, "dev.csv")
     output_file = os.path.join(args.output_dir, "metrics_output.txt")
@@ -70,7 +70,8 @@ if __name__ == "__main__":
     for sample in val_samples:
         labels.append(sample["output"])
 
-    preds = pd.read_csv(predicted_labels_file, sep='\t', header=None).values.tolist()
+    with open(predicted_labels_file, "r") as f:
+        preds = f.readlines()
 
     result_out = "Exact Match score = " + str(exact_match_score(labels, preds)) + "\n"
     print(result_out)
