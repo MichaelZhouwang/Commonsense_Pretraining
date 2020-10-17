@@ -7,21 +7,21 @@ import os
 import re
 import string
 from dataset import KILTT2TProcessor
+from collections import Counter
 
 
 def normalize_answer(s):
     """Lower text and remove punctuation, articles and extra whitespace."""
 
     def remove_articles(text):
-        regex = re.compile(r'\b(a|an|the)\b', re.UNICODE)
-        return re.sub(regex, ' ', text)
+        return re.sub(r"\b(a|an|the)\b", " ", text)
 
     def white_space_fix(text):
-        return ' '.join(text.split())
+        return " ".join(text.split())
 
     def remove_punc(text):
         exclude = set(string.punctuation)
-        return ''.join(ch for ch in text if ch not in exclude)
+        return "".join(ch for ch in text if ch not in exclude)
 
     def lower(text):
         return text.lower()
@@ -29,21 +29,76 @@ def normalize_answer(s):
     return white_space_fix(remove_articles(remove_punc(lower(s))))
 
 
-def get_tokens(s):
-    if not s: return []
-    return normalize_answer(s).split()
+def _exact_match_score(prediction, ground_truth):
+    return normalize_answer(prediction) == normalize_answer(ground_truth)
 
 
-def compute_exact(a_gold, a_pred):
-    return int(normalize_answer(a_gold) == normalize_answer(a_pred))
+def _f1_score(prediction, ground_truth):
+    prediction_tokens = normalize_answer(prediction).split()
+    ground_truth_tokens = normalize_answer(ground_truth).split()
+    common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
+    num_same = sum(common.values())
+    if num_same == 0:
+        return 0
+    precision = 1.0 * num_same / len(prediction_tokens)
+    recall = 1.0 * num_same / len(ground_truth_tokens)
+    f1 = (2 * precision * recall) / (precision + recall)
+    return f1
 
 
-def exact_match_score(y_true, y_preds):
-    num_correct = 0
-    for cur_y_true, cur_y_pred in zip(y_true, y_preds):
-        num_correct += compute_exact(cur_y_true, cur_y_pred)
-    em_score = num_correct / len(y_true)
-    return em_score
+def _metric_max_over_ground_truths(metric_fn, prediction, ground_truths):
+    scores_for_ground_truths = []
+    for ground_truth in ground_truths:
+        score = metric_fn(prediction, ground_truth)
+        scores_for_ground_truths.append(score)
+    return max(scores_for_ground_truths)
+
+
+def _calculate_metrics(gold_records, guess_records):
+    total_count = 0
+
+    # downstream metrics
+    accuracy = 0
+    normalized_em = 0
+    normalized_f1 = 0
+
+    for guess_item, gold_item in zip(guess_records, gold_records):
+        total_count += 1
+        gold_candidate_answers = gold_item
+        guess_answer = guess_item.strip()
+
+        if len(guess_answer) == 0:
+            # empty answer
+            continue
+
+        # 0. accuracy = strict exact match
+        local_accuracy = 0
+        if guess_answer in gold_candidate_answers:
+            local_accuracy = 1
+        accuracy += local_accuracy
+
+        # 1. normalized exact match
+        local_em = _metric_max_over_ground_truths(
+            _exact_match_score, guess_answer, gold_candidate_answers
+        )
+        normalized_em += local_em
+
+        # 2. normalized f1
+        local_f1 = _metric_max_over_ground_truths(
+            _f1_score, guess_answer, gold_candidate_answers
+        )
+        normalized_f1 += local_f1
+
+    if total_count > 0:
+        accuracy /= total_count
+        normalized_em /= total_count
+        normalized_f1 /= total_count
+
+    return {
+        "accuracy": accuracy,
+        "em": normalized_em,
+        "f1": normalized_f1,
+    }
 
 
 if __name__ == "__main__":
@@ -70,24 +125,12 @@ if __name__ == "__main__":
     for sample in val_samples:
         labels.append(sample["output"])
 
+    preds = []
     with open(predicted_labels_file, "r") as f:
-        preds = f.readlines()
+        for cur_line in f:
+            preds.append(cur_line.strip())
 
-    result_out = "Exact Match score = " + str(exact_match_score(labels, preds)) + "\n"
+    result_out = json.dumps(_calculate_metrics(labels, preds))
     print(result_out)
     with open(output_file, "w") as f:
         f.write(result_out)
-
-    # stats = []
-    # for _ in range(100):
-    #     indices = [i for i in np.random.random_integers(0, len(preds) -1, size=len(preds))]
-    #     stats.append(accuracy_score([labels[j] for j in indices], [preds[j] for j in indices]))
-    #
-    # alpha = 0.95
-    # p = ((1.0 - alpha) /2.0) * 100
-    # lower = max(0.0, np.percentile(stats, p))
-    # p = (alpha +((1.0 - alpha) / 2.0)) * 100
-    # upper = min(1.0, np.percentile(stats, p))
-    # print(alpha * 100)
-    # print("confidence interval :", lower * 100, upper * 100)
-    # logger.info(f'{alpha * 10:.1f} confidence interval {lower * 100:.1f} and {upper * 100:.1f}, average: {np.mean(stats ) *100:.1f}')

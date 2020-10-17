@@ -954,7 +954,11 @@ class KILTT2TProcessor(DataProcessor):
             for line in lines:
                 qid = line["id"]
                 input = line["input"]
-                output = line["output"][0]["answer"]
+                output = []
+                for cur_out in line["output"]:
+                    if cur_out.get("answer") is not None:
+                        output.append(cur_out["answer"])
+
                 cur_dict = {
                     "id": qid,
                     "input": input,
@@ -1011,8 +1015,15 @@ class KILTT2TDataset(Dataset):
             self._create_features(example)
 
     def _create_features(self, example):
-        input = example["input"]
-        target = example["output"]
+        if self.task_type == "kilt_natural_qa":
+            input = "question: " + example["input"]
+            target = example["output"][0]
+        elif self.task_type == "kilt_ay2":
+            input = "map the entity in the given text: " + example["input"]
+            target = example["output"][0]
+        else:
+            input = example["input"]
+            target = example["output"][0]
 
         # tokenize inputs
         tokenized_inputs = self.tokenizer.batch_encode_plus(
