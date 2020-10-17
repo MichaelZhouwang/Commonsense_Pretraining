@@ -979,11 +979,12 @@ class KILTT2TProcessor(DataProcessor):
         return examples
 
 class KILTT2TDataset(Dataset):
-    def __init__(self, tokenizer, data_dir, type_path, max_source_length=256, max_target_length=32):
+    def __init__(self, tokenizer, data_dir, type_path, max_source_length=256, max_target_length=32, createMultipleSamples=True):
         self.data_dir = data_dir
         self.type_path = type_path
         self.max_source_length = max_source_length
         self.max_target_length = max_target_length
+        self.createMultipleSamples = createMultipleSamples
 
         self.tokenizer = tokenizer
         self.inputs = []
@@ -1015,26 +1016,40 @@ class KILTT2TDataset(Dataset):
             self._create_features(example)
 
     def _create_features(self, example):
-        if self.task_type == "kilt_natural_qa":
-            input = "question: " + example["input"]
-            target = example["output"][0]
-        elif self.task_type == "kilt_ay2":
-            input = "map the entity in the given text: " + example["input"]
-            target = example["output"][0]
+        # Create only one instance using the first answer as the only answer to the given input
+        if not self.createMultipleSamples:
+            if self.task_type == "kilt_natural_qa":
+                input = "question: " + example["input"]
+                target_list = [example["output"][0]]
+            elif self.task_type == "kilt_ay2":
+                input = "map the entity in the given text: " + example["input"]
+                target_list = [example["output"][0]]
+            else:
+                input = example["input"]
+                target_list = [example["output"][0]]
         else:
-            input = example["input"]
-            target = example["output"][0]
+        # Create multiple instances for each correct answer to the given input
+            if self.task_type == "kilt_natural_qa":
+                input = "question: " + example["input"]
+                target_list = example["output"]
+            elif self.task_type == "kilt_ay2":
+                input = "map the entity in the given text: " + example["input"]
+                target_list = example["output"]
+            else:
+                input = example["input"]
+                target_list = example["output"]
 
-        # tokenize inputs
-        tokenized_inputs = self.tokenizer.batch_encode_plus(
-            [input], max_length=self.max_source_length, pad_to_max_length=True, return_tensors="pt", truncation=True
-        )
+        for target in target_list:
+            # tokenize inputs
+            tokenized_inputs = self.tokenizer.batch_encode_plus(
+                [input], max_length=self.max_source_length, pad_to_max_length=True, return_tensors="pt", truncation=True
+            )
 
-        # tokenize targets
-        tokenized_targets = self.tokenizer.batch_encode_plus(
-            [target], max_length=self.max_target_length, pad_to_max_length=True, return_tensors="pt", truncation=True
-        )
+            # tokenize targets
+            tokenized_targets = self.tokenizer.batch_encode_plus(
+                [target], max_length=self.max_target_length, pad_to_max_length=True, return_tensors="pt", truncation=True
+            )
 
-        self.inputs.append(tokenized_inputs)
-        self.targets.append(tokenized_targets)
+            self.inputs.append(tokenized_inputs)
+            self.targets.append(tokenized_targets)
 
