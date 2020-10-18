@@ -1015,6 +1015,43 @@ class KILTT2TDataset(Dataset):
         for example in examples:
             self._create_features(example)
 
+    def extractInputForEntityTasks(self, input_string, max_num_tokens=450):
+        input_split_list = input_string.split()
+        num_tokens = len(input_split_list)
+        start_token = "[START_ENT]"
+        end_token = "[END_ENT]"
+        l_idx = None
+        r_idx = None
+        for i in range(len(input_split_list)):
+            if input_split_list[i] == start_token:
+                l_idx = i
+            elif input_split_list[i] == end_token:
+                r_idx = i
+
+        result = []
+        for i in range(l_idx, r_idx + 1, 1):
+            result.append(input_split_list[i])
+
+        l_idx -= 1
+        r_idx += 1
+        break_flag = False
+        while not break_flag:
+            if l_idx >= 0:
+                result = [input_split_list[l_idx]] + result
+                l_idx -= 1
+            if r_idx <= num_tokens - 1:
+                result = result + [input_split_list[r_idx]]
+                r_idx += 1
+
+            if l_idx < 0 and r_idx > num_tokens - 1:
+                break_flag = True
+
+            if len(result) >= max_num_tokens:
+                break_flag = True
+
+        result = " ".join(result)
+        return result
+
     def _create_features(self, example):
         # Create only one instance using the first answer as the only answer to the given input
         if not self.createMultipleSamples:
@@ -1022,7 +1059,7 @@ class KILTT2TDataset(Dataset):
                 input = "question: " + example["input"]
                 target_list = [example["output"][0]]
             elif self.task_type == "kilt_ay2":
-                input = "map the entity in the given text: " + example["input"]
+                input = "map the entity in the given text: " + self.extractInputForEntityTasks(example["input"])
                 target_list = [example["output"][0]]
             else:
                 input = example["input"]
@@ -1033,7 +1070,7 @@ class KILTT2TDataset(Dataset):
                 input = "question: " + example["input"]
                 target_list = example["output"]
             elif self.task_type == "kilt_ay2":
-                input = "map the entity in the given text: " + example["input"]
+                input = "map the entity in the given text: " + self.extractInputForEntityTasks(example["input"])
                 target_list = example["output"]
             else:
                 input = example["input"]
