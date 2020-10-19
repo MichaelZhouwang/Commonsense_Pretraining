@@ -933,6 +933,10 @@ class KILTT2TProcessor(DataProcessor):
             self.TRAIN_FILE_NAME = 'nq-train-kilt.jsonl'
             self.DEV_FILE_NAME = 'nq-dev-kilt.jsonl'
             self.TEST_FILE_NAME = 'nq-test_without_answers-kilt.jsonl'
+        elif task_type == "kilt_trivia_qa":
+            self.TRAIN_FILE_NAME = 'triviaqa-train-kilt.jsonl'
+            self.DEV_FILE_NAME = 'triviaqa-dev-kilt.jsonl'
+            self.TEST_FILE_NAME = 'triviaqa-test_without_answers-kilt.jsonl'
         else:
             raise Exception("Invalid kilt task type: " + task_type)
 
@@ -1055,7 +1059,7 @@ class KILTT2TDataset(Dataset):
     def _create_features(self, example):
         # Create only one instance using the first answer as the only answer to the given input
         if not self.createMultipleSamples:
-            if self.task_type == "kilt_natural_qa":
+            if self.task_type == "kilt_natural_qa" or self.task_type == "kilt_trivia_qa":
                 input = "question: " + example["input"]
                 target_list = [example["output"][0]]
             elif self.task_type == "kilt_ay2":
@@ -1066,7 +1070,7 @@ class KILTT2TDataset(Dataset):
                 target_list = [example["output"][0]]
         else:
         # Create multiple instances for each correct answer to the given input
-            if self.task_type == "kilt_natural_qa":
+            if self.task_type == "kilt_natural_qa" or self.task_type == "kilt_trivia_qa":
                 input = "question: " + example["input"]
                 target_list = example["output"]
             elif self.task_type == "kilt_ay2":

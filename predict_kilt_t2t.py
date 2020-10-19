@@ -91,7 +91,7 @@ def extractInputForEntityTasks(input_string, max_num_tokens=450):
     return result
 
 def getInputWithPrefix(input_string, task_type):
-    if task_type == "kilt_natural_qa":
+    if task_type == "kilt_natural_qa" or task_type == "kilt_trivia_qa":
         input = "question: " + input_string
     elif task_type == "kilt_ay2":
         input = "map the entity in the given text: " + extractInputForEntityTasks(input_string)
