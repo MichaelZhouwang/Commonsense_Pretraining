@@ -53,6 +53,8 @@ def run():
 
     parser.add_argument('--data_dir', type=str, default="", required=True,
                         help='Path for Data files')
+    parser.add_argument('--expandSamples', type=lambda x: (str(x).lower() == 'true'), default="False",
+                        help='Whether to create multiple instances for input sequences with multiple correct answers?')
     parser.add_argument('--output_dir', type=str, default="", required=True,
                         help='Path to save the checkpoints')
     parser.add_argument('--checkpoint_dir', type=str, default="",

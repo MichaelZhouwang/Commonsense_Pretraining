@@ -44,7 +44,7 @@ def get_dataset(tokenizer, type_path, args):
     elif data_dir_leaf == "kilt_fever":
         return KILTFEVERDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_len=args.max_seq_length)
     elif data_dir_leaf == "kilt_natural_qa" or data_dir_leaf == "kilt_ay2":
-        return KILTT2TDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_source_length, max_target_length=args.max_target_length)
+        return KILTT2TDataset(tokenizer=tokenizer, data_dir=args.data_dir, type_path=type_path, max_source_length=args.max_source_length, max_target_length=args.max_target_length, createMultipleSamples=args.expandSamples)
 
 
 class T5FineTuner(pl.LightningModule):

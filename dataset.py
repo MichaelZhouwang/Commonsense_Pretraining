@@ -979,7 +979,7 @@ class KILTT2TProcessor(DataProcessor):
         return examples
 
 class KILTT2TDataset(Dataset):
-    def __init__(self, tokenizer, data_dir, type_path, max_source_length=256, max_target_length=32, createMultipleSamples=True):
+    def __init__(self, tokenizer, data_dir, type_path, max_source_length=256, max_target_length=32, createMultipleSamples=False):
         self.data_dir = data_dir
         self.type_path = type_path
         self.max_source_length = max_source_length
