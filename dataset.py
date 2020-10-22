@@ -4,7 +4,7 @@ import tensorflow.compat.v1 as tf
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
 import os, glob
 import pickle
-import re
+import re, string
 
 import logging
 import numpy as np
