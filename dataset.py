@@ -4,6 +4,7 @@ import tensorflow.compat.v1 as tf
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
 import os, glob
 import pickle
+import re
 
 import logging
 import numpy as np
@@ -1019,7 +1020,7 @@ class KILTT2TDataset(Dataset):
         for example in examples:
             self._create_features(example)
 
-    def extractInputForEntityTasks(self, input_string, max_num_tokens=450):
+    def _extractInputForEntityTasks(self, input_string, max_num_tokens=450):
         input_split_list = input_string.split()
         num_tokens = len(input_split_list)
         start_token = "[START_ENT]"
@@ -1056,14 +1057,32 @@ class KILTT2TDataset(Dataset):
         result = " ".join(result)
         return result
 
+    def _normalize_answer(self, s):
+        """Lower text and remove punctuation, articles and extra whitespace."""
+
+        def remove_articles(text):
+            return re.sub(r"\b(a|an|the)\b", " ", text)
+
+        def white_space_fix(text):
+            return " ".join(text.split())
+
+        def remove_punc(text):
+            exclude = set(string.punctuation)
+            return "".join(ch for ch in text if ch not in exclude)
+
+        def lower(text):
+            return text.lower()
+
+        return white_space_fix(remove_articles(remove_punc(lower(s))))
+
     def _create_features(self, example):
         # Create only one instance using the first answer as the only answer to the given input
         if not self.createMultipleSamples:
             if self.task_type == "kilt_natural_qa" or self.task_type == "kilt_trivia_qa":
                 input = "question: " + example["input"]
-                target_list = [example["output"][0]]
+                target_list = [self._normalize_answer(example["output"][0])]
             elif self.task_type == "kilt_ay2":
-                input = "map the entity in the given text: " + self.extractInputForEntityTasks(example["input"])
+                input = "map the entity in the given text: " + self._extractInputForEntityTasks(example["input"])
                 target_list = [example["output"][0]]
             else:
                 input = example["input"]
@@ -1072,9 +1091,9 @@ class KILTT2TDataset(Dataset):
         # Create multiple instances for each correct answer to the given input
             if self.task_type == "kilt_natural_qa" or self.task_type == "kilt_trivia_qa":
                 input = "question: " + example["input"]
-                target_list = example["output"]
+                target_list = [self._normalize_answer(x) for x in example["output"]]
             elif self.task_type == "kilt_ay2":
-                input = "map the entity in the given text: " + self.extractInputForEntityTasks(example["input"])
+                input = "map the entity in the given text: " + self._extractInputForEntityTasks(example["input"])
                 target_list = example["output"]
             else:
                 input = example["input"]
