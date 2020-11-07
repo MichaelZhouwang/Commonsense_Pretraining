@@ -1079,8 +1079,8 @@ class KILTT2TDataset(Dataset):
         # Create only one instance using the first answer as the only answer to the given input
         if not self.createMultipleSamples:
             if self.task_type == "kilt_natural_qa" or self.task_type == "kilt_trivia_qa":
-                input = "question: " + example["input"]
-                target_list = [self._normalize_answer(example["output"][0])]
+                input = "question: " + example["input"] + " </s>"
+                target_list = [self._normalize_answer(example["output"][0]) + " </s>"]
             elif self.task_type == "kilt_ay2":
                 input = "map the entity in the given text: " + self._extractInputForEntityTasks(example["input"])
                 target_list = [example["output"][0]]
