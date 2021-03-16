@@ -1,5 +1,6 @@
 # Commonsense_Pretraining
 
+Detailed Readme to be updated
 
 # Finetuning on CommonGEN dataset
 
